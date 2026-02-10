@@ -24,7 +24,8 @@ export const POST = async (request: Request) => {
   }
   const body = await request.text();
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-    apiVersion: "2025-07-30.basil",
+    // SDK type can lag behind newest API versions.
+    apiVersion: "2026-01-28.clover",
   });
   const event = stripe.webhooks.constructEvent(
     body,
