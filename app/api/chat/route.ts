@@ -29,7 +29,7 @@ chat/r
 
     CENÁRIO 1 - Usuário menciona data/horário na primeira mensagem (ex: "quero um corte pra hoje", "preciso cortar o cabelo amanhã", "quero marcar para sexta"):
     1. Use a ferramenta searchBarbershops para buscar barbearias
-    2. IMEDIATAMENTE após receber as barbearias, use a ferramenta getAvailableTimeSlotsForBarbershop para CADA barbearia retornada, passando a data mencionada pelo usuário
+    2. IMEDIATAMENTE após receber as barbearias, use a ferramenta getAvailableTimeSlotsForBarbershop para CADA barbearia retornada, passando serviceId e a data mencionada pelo usuário
     3. Apresente APENAS as barbearias que têm horários disponíveis, mostrando:
        - Nome da barbearia
        - Endereço
@@ -44,7 +44,7 @@ chat/r
        - Endereço
        - Serviços oferecidos com preços
     3. Quando o usuário demonstrar interesse em uma barbearia específica ou mencionar uma data, pergunte a data desejada (se ainda não foi informada)
-    4. Use a ferramenta getAvailableTimeSlotsForBarbershop passando o barbershopId e a data
+    4. Use a ferramenta getAvailableTimeSlotsForBarbershop passando barbershopId, serviceId e a data
     5. Apresente os horários disponíveis (liste alguns horários, não todos - sugira 4-5 opções espaçadas)
 
     Resumo final (quando o usuário escolher):
@@ -111,20 +111,23 @@ chat/r
           "Obtém os horários disponíveis para uma barbearia específica.",
         inputSchema: z.object({
           barbershopId: z.string().uuid(),
+          serviceId: z.string().uuid(),
           date: z
             .string()
             .describe(
               "A data no formato ISO (YYYY-MM-DD) para a qual você deseja verificar os horários disponíveis.",
             ),
         }),
-        execute: async ({ barbershopId, date }) => {
-          console.log("getAvailableTimeSlotsForBarbershop", barbershopId, date);
+        execute: async ({ barbershopId, serviceId, date }) => {
+          console.log("getAvailableTimeSlotsForBarbershop", barbershopId, serviceId, date);
           const availableTimeSlots = await getDateAvailableTimeSlots({
             barbershopId,
+            serviceId,
             date: new Date(date),
           });
           return {
             barbershopId,
+            serviceId,
             date,
             availableTimeSlots,
           };

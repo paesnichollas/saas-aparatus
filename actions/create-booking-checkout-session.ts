@@ -1,11 +1,12 @@
 "use server";
 
 import { protectedActionClient } from "@/lib/action-client";
-import z from "zod";
-import Stripe from "stripe";
+import { hasMinuteIntervalOverlap, toMinuteOfDay } from "@/lib/booking-interval";
 import { prisma } from "@/lib/prisma";
+import { endOfDay, isPast, startOfDay } from "date-fns";
 import { returnValidationErrors } from "next-safe-action";
-import { isPast } from "date-fns";
+import Stripe from "stripe";
+import z from "zod";
 
 const inputSchema = z.object({
   serviceId: z.uuid(),
@@ -20,39 +21,70 @@ export const createBookingCheckoutSession = protectedActionClient
         _errors: ["Chave de API do Stripe não encontrada."],
       });
     }
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2026-01-28.clover",
-    });
-    const service = await prisma.barbershopService.findUnique({
-      where: {
-        id: serviceId,
-      },
-      include: {
-        barbershop: true,
-      },
-    });
-    if (!service) {
-      returnValidationErrors(inputSchema, {
-        _errors: ["Serviço não encontrado."],
-      });
-    }
+
     if (isPast(date)) {
       returnValidationErrors(inputSchema, {
         _errors: ["Data e hora selecionadas já passaram."],
       });
     }
-    const existingBooking = await prisma.booking.findFirst({
+
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2026-01-28.clover",
+    });
+
+    const service = await prisma.barbershopService.findFirst({
       where: {
-        barbershopId: service.barbershopId,
-        date,
-        cancelledAt: null,
+        id: serviceId,
+        deletedAt: null,
+      },
+      include: {
+        barbershop: true,
       },
     });
-    if (existingBooking) {
+
+    if (!service) {
+      returnValidationErrors(inputSchema, {
+        _errors: ["Serviço não encontrado."],
+      });
+    }
+
+    const bookings = await prisma.booking.findMany({
+      where: {
+        barbershopId: service.barbershopId,
+        date: {
+          gte: startOfDay(date),
+          lte: endOfDay(date),
+        },
+        cancelledAt: null,
+      },
+      select: {
+        date: true,
+        service: {
+          select: {
+            durationInMinutes: true,
+          },
+        },
+      },
+    });
+
+    const hasCollision = hasMinuteIntervalOverlap(
+      toMinuteOfDay(date),
+      service.durationInMinutes,
+      bookings.map((booking) => {
+        const startMinute = toMinuteOfDay(booking.date);
+        return {
+          startMinute,
+          endMinute: startMinute + booking.service.durationInMinutes,
+        };
+      }),
+    );
+
+    if (hasCollision) {
       returnValidationErrors(inputSchema, {
         _errors: ["Data e hora selecionadas já estão agendadas."],
       });
     }
+
     const checkoutSession = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       mode: "payment",
@@ -68,10 +100,10 @@ export const createBookingCheckoutSession = protectedActionClient
         {
           price_data: {
             currency: "brl",
-            unit_amount: service?.priceInCents,
+            unit_amount: service.priceInCents,
             product_data: {
-              name: `${service?.barbershop?.name} - ${service?.name}`,
-              description: service?.description,
+              name: `${service.barbershop.name} - ${service.name}`,
+              description: service.description,
               images: [service.imageUrl],
             },
           },
@@ -79,5 +111,6 @@ export const createBookingCheckoutSession = protectedActionClient
         },
       ],
     });
+
     return checkoutSession;
   });

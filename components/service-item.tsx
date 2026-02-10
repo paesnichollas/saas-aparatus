@@ -38,6 +38,7 @@ const ServiceItem = ({ service, barbershop }: ServiceItemProps) => {
     useAction(createBookingCheckoutSession);
   const { data: availableTimeSlots } = useGetDateAvailableTimeSlots({
     barbershopId: barbershop.id,
+    serviceId: service.id,
     date: selectedDate,
   });
 

@@ -1,12 +1,12 @@
-"use server"; // don't forget to add this!
+"use server";
 
-import { z } from "zod";
 import { protectedActionClient } from "@/lib/action-client";
-import { returnValidationErrors } from "next-safe-action";
+import { hasMinuteIntervalOverlap, toMinuteOfDay } from "@/lib/booking-interval";
 import { prisma } from "@/lib/prisma";
-import { isPast } from "date-fns";
+import { endOfDay, isPast, startOfDay } from "date-fns";
+import { returnValidationErrors } from "next-safe-action";
+import { z } from "zod";
 
-// This schema is used to validate input from client.
 const inputSchema = z.object({
   serviceId: z.uuid(),
   date: z.date(),
@@ -20,32 +20,61 @@ export const createBooking = protectedActionClient
         _errors: ["Data e hora selecionadas já passaram."],
       });
     }
-    const service = await prisma.barbershopService.findUnique({
+
+    const service = await prisma.barbershopService.findFirst({
       where: {
         id: serviceId,
+        deletedAt: null,
+      },
+      select: {
+        barbershopId: true,
+        durationInMinutes: true,
       },
     });
-    // Serviço existe?
+
     if (!service) {
       returnValidationErrors(inputSchema, {
-        _errors: [
-          "Serviço não encontrado. Por favor, selecione outro serviço.",
-        ],
+        _errors: ["Serviço não encontrado. Por favor, selecione outro serviço."],
       });
     }
-    // Já tem agendamento pra esse horário?
-    const existingBooking = await prisma.booking.findFirst({
+
+    const bookings = await prisma.booking.findMany({
       where: {
         barbershopId: service.barbershopId,
-        date,
+        date: {
+          gte: startOfDay(date),
+          lte: endOfDay(date),
+        },
         cancelledAt: null,
       },
+      select: {
+        date: true,
+        service: {
+          select: {
+            durationInMinutes: true,
+          },
+        },
+      },
     });
-    if (existingBooking) {
+
+    const hasCollision = hasMinuteIntervalOverlap(
+      toMinuteOfDay(date),
+      service.durationInMinutes,
+      bookings.map((booking) => {
+        const startMinute = toMinuteOfDay(booking.date);
+        return {
+          startMinute,
+          endMinute: startMinute + booking.service.durationInMinutes,
+        };
+      }),
+    );
+
+    if (hasCollision) {
       returnValidationErrors(inputSchema, {
         _errors: ["Data e hora selecionadas já estão agendadas."],
       });
     }
+
     const booking = await prisma.booking.create({
       data: {
         serviceId,
@@ -54,5 +83,6 @@ export const createBooking = protectedActionClient
         barbershopId: service.barbershopId,
       },
     });
+
     return booking;
   });

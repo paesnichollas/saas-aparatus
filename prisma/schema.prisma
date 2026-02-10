@@ -14,30 +14,46 @@ datasource db {
 }
 
 model Barbershop {
-  id          String              @id @default(uuid())
-  name        String
-  address     String
-  description String
-  imageUrl    String
-  phones      String[]
-  ownerId     String?
-  owner       User?               @relation("BarbershopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  services    BarbershopService[]
-  bookings    Booking[]
+  id                     String                  @id @default(uuid())
+  name                   String
+  address                String
+  description            String
+  imageUrl               String
+  phones                 String[]
+  bookingIntervalMinutes Int                     @default(30)
+  ownerId                String?
+  owner                  User?                   @relation("BarbershopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  services               BarbershopService[]
+  bookings               Booking[]
+  openingHours           BarbershopOpeningHours[]
 
   @@index([ownerId])
 }
 
 model BarbershopService {
+  id                String     @id @default(uuid())
+  name              String
+  description       String
+  imageUrl          String
+  priceInCents      Int
+  durationInMinutes Int        @default(30)
+  barbershopId      String
+  barbershop        Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
+  bookings          Booking[]
+  deletedAt         DateTime?
+}
+
+model BarbershopOpeningHours {
   id           String     @id @default(uuid())
-  name         String
-  description  String
-  imageUrl     String
-  priceInCents Int
   barbershopId String
+  dayOfWeek    Int
+  openMinute   Int
+  closeMinute  Int
+  closed       Boolean    @default(false)
   barbershop   Barbershop @relation(fields: [barbershopId], references: [id], onDelete: Cascade)
-  bookings     Booking[]
-  deletedAt    DateTime?
+
+  @@index([barbershopId])
+  @@unique([barbershopId, dayOfWeek])
 }
 
 model Booking {

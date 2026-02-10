@@ -4,18 +4,21 @@ import { useQuery } from "@tanstack/react-query";
 
 export const useGetDateAvailableTimeSlots = ({
   barbershopId,
+  serviceId,
   date,
 }: {
   barbershopId: string;
+  serviceId: string;
   date?: Date;
 }) => {
   return useQuery({
-    queryKey: queryKeys.getDateAvailableTimeSlots(barbershopId, date),
+    queryKey: queryKeys.getDateAvailableTimeSlots(barbershopId, serviceId, date),
     queryFn: () =>
       getDateAvailableTimeSlots({
         barbershopId,
+        serviceId,
         date: date!,
       }),
-    enabled: Boolean(date),
+    enabled: Boolean(date && serviceId),
   });
 };

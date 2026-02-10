@@ -1,5 +1,7 @@
 import Footer from "@/components/footer";
 import Header from "@/components/header";
+import ScheduleSettingsForm from "@/components/admin/schedule-settings-form";
+import ServicesDurationForm from "@/components/admin/services-duration-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +21,13 @@ import { getBookingStatus } from "@/lib/booking-status";
 import { auth } from "@/lib/auth";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, MessageCircleMore, Phone, Scissors, UserRound } from "lucide-react";
+import {
+  CalendarDays,
+  MessageCircleMore,
+  Phone,
+  Scissors,
+  UserRound,
+} from "lucide-react";
 import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
@@ -178,6 +186,28 @@ const AdminPage = async () => {
               </CardContent>
             </Card>
           )}
+        </PageSectionContent>
+
+        <PageSectionContent>
+          <PageSectionTitle>Configurações de agenda</PageSectionTitle>
+          <ScheduleSettingsForm
+            barbershopId={barbershop.id}
+            bookingIntervalMinutes={barbershop.bookingIntervalMinutes}
+            openingHours={barbershop.openingHours.map((openingHour) => ({
+              dayOfWeek: openingHour.dayOfWeek,
+              openMinute: openingHour.openMinute,
+              closeMinute: openingHour.closeMinute,
+              closed: openingHour.closed,
+            }))}
+          />
+          <ServicesDurationForm
+            barbershopId={barbershop.id}
+            services={barbershop.services.map((service) => ({
+              id: service.id,
+              name: service.name,
+              durationInMinutes: service.durationInMinutes,
+            }))}
+          />
         </PageSectionContent>
 
         <PageSectionContent>

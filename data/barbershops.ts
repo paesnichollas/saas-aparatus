@@ -5,6 +5,7 @@ import { Prisma } from "@/generated/prisma/client";
 export type AdminBarbershopWithRelations = Prisma.BarbershopGetPayload<{
   include: {
     services: true;
+    openingHours: true;
     bookings: {
       include: {
         service: true;
@@ -64,6 +65,11 @@ export const getAdminBarbershopByUserId = async (userId: string) => {
         },
         orderBy: {
           name: "asc",
+        },
+      },
+      openingHours: {
+        orderBy: {
+          dayOfWeek: "asc",
         },
       },
       bookings: {

@@ -5,6 +5,13 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
 
+const openingHoursData = Array.from({ length: 7 }, (_, dayOfWeek) => ({
+  dayOfWeek,
+  openMinute: 9 * 60,
+  closeMinute: 18 * 60,
+  closed: false,
+}));
+
 async function seedDatabase() {
   try {
     const images = [
@@ -116,9 +123,17 @@ async function seedDatabase() {
           address,
           imageUrl: imageUrl,
           phones: ["(11) 99999-9999", "(11) 99999-9999"],
+          bookingIntervalMinutes: 30,
           description:
             "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec ac augue ullamcorper, pharetra orci mollis, auctor tellus. Phasellus pharetra erat ac libero efficitur tempus. Donec pretium convallis iaculis. Etiam eu felis sollicitudin, cursus mi vitae, iaculis magna. Nam non erat neque. In hac habitasse platea dictumst. Pellentesque molestie accumsan tellus id laoreet.",
         },
+      });
+
+      await prisma.barbershopOpeningHours.createMany({
+        data: openingHoursData.map((openingHour) => ({
+          ...openingHour,
+          barbershopId: barbershop.id,
+        })),
       });
 
       for (const service of services) {
@@ -127,6 +142,7 @@ async function seedDatabase() {
             name: service.name,
             description: service.description,
             priceInCents: service.price * 100,
+            durationInMinutes: 30,
             barbershop: {
               connect: {
                 id: barbershop.id,
