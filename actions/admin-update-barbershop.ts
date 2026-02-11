@@ -1,7 +1,7 @@
 "use server";
 
 import { adminUpdateBarbershop } from "@/data/admin/barbershops";
-import { protectedActionClient } from "@/lib/action-client";
+import { adminActionClient } from "@/lib/action-client";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -12,10 +12,10 @@ const inputSchema = z.object({
   phones: z.array(z.string().trim().min(8).max(30)).min(1).max(6),
   exclusiveBarber: z.boolean(),
   stripeEnabled: z.boolean(),
-  ownerId: z.union([z.uuid(), z.null()]).optional(),
+  ownerId: z.union([z.string().trim().min(1), z.null()]).optional(),
 });
 
-export const adminUpdateBarbershopAction = protectedActionClient
+export const adminUpdateBarbershopAction = adminActionClient
   .inputSchema(inputSchema)
   .action(async ({ parsedInput }) => {
     try {

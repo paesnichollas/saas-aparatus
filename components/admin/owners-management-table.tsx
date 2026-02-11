@@ -37,17 +37,36 @@ interface OwnersManagementTableProps {
 }
 
 const getValidationErrorMessage = (validationErrors: unknown) => {
-  if (!validationErrors || typeof validationErrors !== "object") {
+  const getFirstErrorFromNode = (value: unknown): string | null => {
+    if (!value || typeof value !== "object") {
+      return null;
+    }
+
+    const errors = (value as { _errors?: unknown })._errors;
+
+    if (Array.isArray(errors)) {
+      const firstStringError = errors.find(
+        (errorItem): errorItem is string =>
+          typeof errorItem === "string" && errorItem.trim().length > 0,
+      );
+
+      if (firstStringError) {
+        return firstStringError;
+      }
+    }
+
+    for (const nestedValue of Object.values(value as Record<string, unknown>)) {
+      const nestedError = getFirstErrorFromNode(nestedValue);
+
+      if (nestedError) {
+        return nestedError;
+      }
+    }
+
     return null;
-  }
+  };
 
-  const rootErrors = (validationErrors as { _errors?: unknown })._errors;
-
-  if (Array.isArray(rootErrors) && typeof rootErrors[0] === "string") {
-    return rootErrors[0];
-  }
-
-  return null;
+  return getFirstErrorFromNode(validationErrors);
 };
 
 const OwnersManagementTable = ({

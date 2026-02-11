@@ -4,16 +4,16 @@ import {
   OwnerAssignmentError,
   demoteOwnerToCustomerByAdmin,
 } from "@/data/owner-assignment";
-import { protectedActionClient } from "@/lib/action-client";
+import { adminActionClient } from "@/lib/action-client";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
 
 const inputSchema = z.object({
-  userId: z.uuid(),
+  userId: z.string().trim().min(1),
 });
 
-export const demoteOwnerToCustomer = protectedActionClient
+export const demoteOwnerToCustomer = adminActionClient
   .inputSchema(inputSchema)
   .action(async ({ parsedInput: { userId }, ctx: { user } }) => {
     try {
@@ -22,6 +22,8 @@ export const demoteOwnerToCustomer = protectedActionClient
         userId,
       });
 
+      revalidatePath("/admin");
+      revalidatePath("/admin/owners");
       revalidatePath("/owner");
 
       return result;

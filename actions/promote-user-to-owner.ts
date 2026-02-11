@@ -4,18 +4,18 @@ import {
   OwnerAssignmentError,
   promoteUserToOwnerByAdmin,
 } from "@/data/owner-assignment";
-import { protectedActionClient } from "@/lib/action-client";
+import { adminActionClient } from "@/lib/action-client";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
 
 const inputSchema = z.object({
-  userId: z.uuid(),
+  userId: z.string().trim().min(1),
   barbershopId: z.uuid().optional(),
   allowTransfer: z.boolean().optional(),
 });
 
-export const promoteUserToOwner = protectedActionClient
+export const promoteUserToOwner = adminActionClient
   .inputSchema(inputSchema)
   .action(
     async ({
@@ -30,6 +30,8 @@ export const promoteUserToOwner = protectedActionClient
           allowTransfer: allowTransfer ?? false,
         });
 
+        revalidatePath("/admin");
+        revalidatePath("/admin/owners");
         revalidatePath("/owner");
 
         return result;

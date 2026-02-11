@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2, LogIn, Phone, UserRound } from "lucide-react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";

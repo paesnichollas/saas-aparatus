@@ -1,17 +1,17 @@
 "use server";
 
 import { adminUpdateUserRole } from "@/data/admin/users";
-import { protectedActionClient } from "@/lib/action-client";
+import { adminActionClient } from "@/lib/action-client";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
 
 const inputSchema = z.object({
-  userId: z.uuid(),
+  userId: z.string().trim().min(1),
   role: z.enum(["CUSTOMER", "ADMIN"]),
 });
 
-export const adminUpdateUserRoleAction = protectedActionClient
+export const adminUpdateUserRoleAction = adminActionClient
   .inputSchema(inputSchema)
   .action(async ({ parsedInput }) => {
     try {

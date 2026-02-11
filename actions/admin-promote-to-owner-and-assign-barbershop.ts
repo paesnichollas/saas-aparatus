@@ -1,18 +1,18 @@
 "use server";
 
 import { adminPromoteToOwnerAndAssignBarbershop } from "@/data/admin/users";
-import { protectedActionClient } from "@/lib/action-client";
+import { adminActionClient } from "@/lib/action-client";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
 
 const inputSchema = z.object({
-  userId: z.uuid(),
+  userId: z.string().trim().min(1),
   barbershopId: z.uuid(),
   allowTransfer: z.boolean().optional(),
 });
 
-export const adminPromoteToOwnerAndAssignBarbershopAction = protectedActionClient
+export const adminPromoteToOwnerAndAssignBarbershopAction = adminActionClient
   .inputSchema(inputSchema)
   .action(async ({ parsedInput }) => {
     try {
