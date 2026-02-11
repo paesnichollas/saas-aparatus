@@ -11,6 +11,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { type UserRole } from "@/generated/prisma/client";
@@ -35,6 +36,7 @@ const MenuSheet = ({
   homeHref = "/",
   userRole = null,
 }: MenuSheetProps) => {
+  const router = useRouter();
   const { data: session } = authClient.useSession();
   const user = session?.user;
 
@@ -43,7 +45,11 @@ const MenuSheet = ({
 
     if (error) {
       toast.error(error.message);
+      return;
     }
+
+    router.replace("/auth");
+    router.refresh();
   };
 
   const isLoggedIn = Boolean(user);

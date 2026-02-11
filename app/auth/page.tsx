@@ -1,4 +1,6 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { getSessionUser } from "@/lib/rbac";
 
 import AuthPageClient from "./auth-page-client";
 
@@ -10,7 +12,13 @@ const AuthPageFallback = () => {
   );
 };
 
-const AuthPage = () => {
+const AuthPage = async () => {
+  const user = await getSessionUser();
+
+  if (user) {
+    redirect("/");
+  }
+
   return (
     <Suspense fallback={<AuthPageFallback />}>
       <AuthPageClient />

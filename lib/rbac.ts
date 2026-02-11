@@ -54,6 +54,16 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
   return user;
 };
 
+export const requireAuthenticatedUser = async (): Promise<SessionUser> => {
+  const user = await getSessionUser();
+
+  if (!user) {
+    redirect("/auth");
+  }
+
+  return user;
+};
+
 export const getUserRoleFromSession = async (): Promise<UserRole | null> => {
   const user = await getSessionUser();
 

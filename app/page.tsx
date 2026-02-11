@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 
 import BarbershopItem from "@/components/barbershop-item";
 import BookingItem from "@/components/booking-item";
@@ -20,22 +20,18 @@ import {
   PageSectionScroller,
   PageSectionTitle,
 } from "@/components/ui/page";
-import { auth } from "@/lib/auth";
 import { BARBERSHOP_CONTEXT_COOKIE_NAME } from "@/lib/barbershop-context";
+import { requireAuthenticatedUser } from "@/lib/rbac";
 import banner from "@/public/banner.png";
 
 export default async function Home() {
+  const user = await requireAuthenticatedUser();
   const cookieStore = await cookies();
   const barbershopContextIdFromCookie =
     cookieStore.get(BARBERSHOP_CONTEXT_COOKIE_NAME)?.value ?? null;
-  const requestHeaders = await headers();
-  const session = await auth.api.getSession({
-    headers: requestHeaders,
-  });
-
-  const fallbackBarbershopContextId = session?.user
-    ? await getPreferredBarbershopIdForUser(session.user.id)
-    : null;
+  const fallbackBarbershopContextId = await getPreferredBarbershopIdForUser(
+    user.id,
+  );
   const barbershopContextId =
     barbershopContextIdFromCookie ?? fallbackBarbershopContextId;
 
