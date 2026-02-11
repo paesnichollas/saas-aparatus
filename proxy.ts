@@ -28,34 +28,10 @@ const isPublicRoute = (pathname: string) => {
   );
 };
 
-const getSafeCallbackUrl = (callbackUrl: string | null, fallbackUrl: string) => {
-  if (!callbackUrl) {
-    return fallbackUrl;
-  }
-
-  if (!callbackUrl.startsWith("/")) {
-    return fallbackUrl;
-  }
-
-  if (callbackUrl.startsWith("//")) {
-    return fallbackUrl;
-  }
-
-  return callbackUrl;
-};
-
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const sessionToken = getSessionCookie(request.headers);
   const isAuthenticated = Boolean(sessionToken);
-
-  if (pathname === "/auth" && isAuthenticated) {
-    const callbackUrl = getSafeCallbackUrl(
-      request.nextUrl.searchParams.get("callbackUrl"),
-      "/",
-    );
-    return NextResponse.redirect(new URL(callbackUrl, request.url));
-  }
 
   if (isPublicRoute(pathname)) {
     return NextResponse.next();

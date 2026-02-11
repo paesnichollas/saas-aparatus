@@ -33,6 +33,23 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
     return null;
   }
 
+  if (!session.session?.id) {
+    return null;
+  }
+
+  const activeSession = await prisma.session.findUnique({
+    where: {
+      id: session.session.id,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!activeSession) {
+    return null;
+  }
+
   const user = await prisma.user.findUnique({
     where: {
       id: session.user.id,
@@ -43,7 +60,18 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
       email: true,
       image: true,
       role: true,
+      isActive: true,
       barbershopId: true,
+      barbershop: {
+        select: {
+          isActive: true,
+        },
+      },
+      ownedBarbershop: {
+        select: {
+          isActive: true,
+        },
+      },
     },
   });
 
@@ -51,7 +79,26 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
     return null;
   }
 
-  return user;
+  if (!user.isActive) {
+    return null;
+  }
+
+  if (user.barbershop && !user.barbershop.isActive) {
+    return null;
+  }
+
+  if (user.ownedBarbershop && !user.ownedBarbershop.isActive) {
+    return null;
+  }
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    image: user.image,
+    role: user.role,
+    barbershopId: user.barbershopId,
+  };
 };
 
 export const requireAuthenticatedUser = async (): Promise<SessionUser> => {

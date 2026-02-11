@@ -26,6 +26,7 @@ model Barbershop {
   phones                 String[]
   bookingIntervalMinutes Int                     @default(30)
   stripeEnabled          Boolean                 @default(true)
+  isActive               Boolean                 @default(true)
   ownerId                String?                 @unique
   owner                  User?                   @relation("BarbershopOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   users                  User[]                  @relation("UserBarbershop")
@@ -146,6 +147,7 @@ model User {
   emailVerified      Boolean               @default(false)
   image              String?
   role               UserRole              @default(CUSTOMER)
+  isActive           Boolean               @default(true)
   barbershopId       String?
   barbershop         Barbershop?           @relation("UserBarbershop", fields: [barbershopId], references: [id], onDelete: SetNull)
   currentBarbershopId String?

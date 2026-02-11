@@ -60,6 +60,11 @@ export const createBooking = protectedActionClient
         priceInCents: true,
         barbershopId: true,
         durationInMinutes: true,
+        barbershop: {
+          select: {
+            isActive: true,
+          },
+        },
       },
     });
 
@@ -78,6 +83,12 @@ export const createBooking = protectedActionClient
         _errors: [
           "Este serviço está temporariamente indisponível para reserva. Tente novamente mais tarde.",
         ],
+      });
+    }
+
+    if (!service.barbershop.isActive) {
+      returnValidationErrors(inputSchema, {
+        _errors: ["Barbearia indisponivel para reservas."],
       });
     }
 

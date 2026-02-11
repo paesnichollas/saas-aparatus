@@ -114,6 +114,7 @@ export const createBookingCheckoutSession = protectedActionClient
             id: true,
             name: true,
             stripeEnabled: true,
+            isActive: true,
           },
         }),
         prisma.barber.findFirst({
@@ -151,6 +152,12 @@ export const createBookingCheckoutSession = protectedActionClient
       if (!barbershop || !barber) {
         returnValidationErrors(inputSchema, {
           _errors: ["Barbearia ou barbeiro nao encontrado."],
+        });
+      }
+
+      if (!barbershop.isActive) {
+        returnValidationErrors(inputSchema, {
+          _errors: ["Barbearia indisponivel para reservas."],
         });
       }
 

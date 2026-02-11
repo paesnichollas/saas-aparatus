@@ -29,6 +29,16 @@ const normalizeSearch = (search: string | undefined) => {
   return normalizedSearch?.length ? normalizedSearch : null;
 };
 
+const normalizeRequiredId = (value: string, errorMessage: string) => {
+  const normalizedValue = value.trim();
+
+  if (!normalizedValue) {
+    throw new Error(errorMessage);
+  }
+
+  return normalizedValue;
+};
+
 interface AdminListUsersInput {
   role?: UserRole | "ALL";
   search?: string;
@@ -80,11 +90,13 @@ export const adminListUsers = async (input: AdminListUsersInput = {}) => {
         name: true,
         email: true,
         role: true,
+        isActive: true,
         barbershopId: true,
         ownedBarbershop: {
           select: {
             id: true,
             name: true,
+            isActive: true,
           },
         },
       },
@@ -194,11 +206,13 @@ export const adminUpdateUserRole = async ({
         name: true,
         email: true,
         role: true,
+        isActive: true,
         barbershopId: true,
         ownedBarbershop: {
           select: {
             id: true,
             name: true,
+            isActive: true,
           },
         },
       },
@@ -236,11 +250,13 @@ export const adminUpdateUserRole = async ({
         name: true,
         email: true,
         role: true,
+        isActive: true,
         barbershopId: true,
         ownedBarbershop: {
           select: {
             id: true,
             name: true,
+            isActive: true,
           },
         },
       },
@@ -275,5 +291,196 @@ export const adminPromoteToOwnerAndAssignBarbershop = async ({
     userId: normalizedUserId,
     barbershopId: normalizedBarbershopId,
     allowTransfer,
+  });
+};
+
+interface AdminToggleBarbershopAccessInput {
+  actorUserId: string;
+  barbershopId: string;
+}
+
+const getLinkedUserIdsByBarbershop = async (
+  tx: Prisma.TransactionClient,
+  barbershopId: string,
+) => {
+  const barbershop = await tx.barbershop.findUnique({
+    where: {
+      id: barbershopId,
+    },
+    select: {
+      id: true,
+      isActive: true,
+      ownerId: true,
+    },
+  });
+
+  if (!barbershop) {
+    throw new Error("Barbearia nao encontrada.");
+  }
+
+  const [directCustomers, customerLinks] = await Promise.all([
+    tx.user.findMany({
+      where: {
+        barbershopId,
+        role: "CUSTOMER",
+      },
+      select: {
+        id: true,
+      },
+    }),
+    tx.customerBarbershop.findMany({
+      where: {
+        barbershopId,
+        customer: {
+          role: "CUSTOMER",
+        },
+      },
+      select: {
+        customerId: true,
+      },
+    }),
+  ]);
+
+  const linkedUserIds = new Set<string>();
+
+  if (barbershop.ownerId) {
+    linkedUserIds.add(barbershop.ownerId);
+  }
+
+  for (const customer of directCustomers) {
+    linkedUserIds.add(customer.id);
+  }
+
+  for (const customerLink of customerLinks) {
+    linkedUserIds.add(customerLink.customerId);
+  }
+
+  return {
+    barbershop,
+    linkedUserIds: Array.from(linkedUserIds),
+  };
+};
+
+export const adminDisableBarbershopAccess = async ({
+  actorUserId,
+  barbershopId,
+}: AdminToggleBarbershopAccessInput) => {
+  const adminUser = await requireAdmin({ onUnauthorized: "throw" });
+
+  const normalizedActorUserId = normalizeRequiredId(
+    actorUserId,
+    "Administrador invalido.",
+  );
+  const normalizedBarbershopId = normalizeRequiredId(
+    barbershopId,
+    "Barbearia invalida.",
+  );
+
+  if (adminUser.id !== normalizedActorUserId) {
+    throw new Error("Administrador invalido.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const { barbershop, linkedUserIds } = await getLinkedUserIdsByBarbershop(
+      tx,
+      normalizedBarbershopId,
+    );
+
+    await tx.barbershop.update({
+      where: {
+        id: barbershop.id,
+      },
+      data: {
+        isActive: false,
+      },
+    });
+
+    const [updatedUsers, deletedSessions] = await Promise.all([
+      linkedUserIds.length > 0
+        ? tx.user.updateMany({
+            where: {
+              id: {
+                in: linkedUserIds,
+              },
+            },
+            data: {
+              isActive: false,
+            },
+          })
+        : Promise.resolve({ count: 0 }),
+      linkedUserIds.length > 0
+        ? tx.session.deleteMany({
+            where: {
+              userId: {
+                in: linkedUserIds,
+              },
+            },
+          })
+        : Promise.resolve({ count: 0 }),
+    ]);
+
+    return {
+      barbershopId: barbershop.id,
+      barbershopIsActive: false,
+      affectedUsersCount: updatedUsers.count,
+      revokedSessionsCount: deletedSessions.count,
+    };
+  });
+};
+
+export const adminEnableBarbershopAccess = async ({
+  actorUserId,
+  barbershopId,
+}: AdminToggleBarbershopAccessInput) => {
+  const adminUser = await requireAdmin({ onUnauthorized: "throw" });
+
+  const normalizedActorUserId = normalizeRequiredId(
+    actorUserId,
+    "Administrador invalido.",
+  );
+  const normalizedBarbershopId = normalizeRequiredId(
+    barbershopId,
+    "Barbearia invalida.",
+  );
+
+  if (adminUser.id !== normalizedActorUserId) {
+    throw new Error("Administrador invalido.");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const { barbershop, linkedUserIds } = await getLinkedUserIdsByBarbershop(
+      tx,
+      normalizedBarbershopId,
+    );
+
+    await tx.barbershop.update({
+      where: {
+        id: barbershop.id,
+      },
+      data: {
+        isActive: true,
+      },
+    });
+
+    const updatedUsers =
+      linkedUserIds.length > 0
+        ? await tx.user.updateMany({
+            where: {
+              id: {
+                in: linkedUserIds,
+              },
+            },
+            data: {
+              isActive: true,
+            },
+          })
+        : { count: 0 };
+
+    return {
+      barbershopId: barbershop.id,
+      barbershopIsActive: true,
+      affectedUsersCount: updatedUsers.count,
+      revokedSessionsCount: 0,
+    };
   });
 };

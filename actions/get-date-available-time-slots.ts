@@ -39,6 +39,7 @@ export const getDateAvailableTimeSlots = actionClient
           id: barbershopId,
         },
         select: {
+          isActive: true,
           openingHours: {
             where: {
               dayOfWeek: date.getDay(),
@@ -76,7 +77,12 @@ export const getDateAvailableTimeSlots = actionClient
       }),
     ]);
 
-    if (!barbershop || !barber || services.length !== uniqueServiceIds.length) {
+    if (
+      !barbershop ||
+      !barbershop.isActive ||
+      !barber ||
+      services.length !== uniqueServiceIds.length
+    ) {
       return [];
     }
 

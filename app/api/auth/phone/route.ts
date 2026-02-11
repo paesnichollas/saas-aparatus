@@ -17,6 +17,7 @@ interface PhoneAuthRequestBody {
 
 const MIN_NAME_LENGTH = 2;
 const FALLBACK_CUSTOMER_NAME = "Cliente";
+const ACCOUNT_DEACTIVATED_ERROR_MESSAGE = "Conta desativada";
 
 const getSafeCallbackUrl = (callbackUrl: string | undefined) => {
   if (!callbackUrl) {
@@ -65,6 +66,50 @@ const getNormalizedCustomerName = (name: string | undefined) => {
   return normalizedName;
 };
 
+const isInactiveUser = (user: {
+  isActive: boolean;
+  barbershop: {
+    isActive: boolean;
+  } | null;
+  ownedBarbershop: {
+    isActive: boolean;
+  } | null;
+}) => {
+  if (!user.isActive) {
+    return true;
+  }
+
+  if (user.barbershop && !user.barbershop.isActive) {
+    return true;
+  }
+
+  if (user.ownedBarbershop && !user.ownedBarbershop.isActive) {
+    return true;
+  }
+
+  return false;
+};
+
+const getAuthErrorMessage = async (response: Response) => {
+  try {
+    const responseJson = (await response
+      .clone()
+      .json()) as { message?: string; error?: string };
+
+    if (typeof responseJson.error === "string" && responseJson.error.trim()) {
+      return responseJson.error.trim();
+    }
+
+    if (typeof responseJson.message === "string" && responseJson.message.trim()) {
+      return responseJson.message.trim();
+    }
+  } catch {
+    // No-op.
+  }
+
+  return null;
+};
+
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
@@ -109,8 +154,28 @@ export async function POST(request: Request) {
       id: true,
       name: true,
       phone: true,
+      isActive: true,
+      barbershop: {
+        select: {
+          isActive: true,
+        },
+      },
+      ownedBarbershop: {
+        select: {
+          isActive: true,
+        },
+      },
     },
   });
+
+  if (existingUser && isInactiveUser(existingUser)) {
+    return NextResponse.json(
+      {
+        error: ACCOUNT_DEACTIVATED_ERROR_MESSAGE,
+      },
+      { status: 403 },
+    );
+  }
 
   let authResponse: Response;
 
@@ -149,6 +214,20 @@ export async function POST(request: Request) {
   }
 
   if (!authResponse.ok) {
+    const authErrorMessage = await getAuthErrorMessage(authResponse);
+
+    if (
+      authErrorMessage &&
+      authErrorMessage.toLowerCase().includes("conta desativada")
+    ) {
+      return NextResponse.json(
+        {
+          error: ACCOUNT_DEACTIVATED_ERROR_MESSAGE,
+        },
+        { status: 403 },
+      );
+    }
+
     return NextResponse.json(
       {
         error: "Nao foi possivel autenticar com nome e telefone.",

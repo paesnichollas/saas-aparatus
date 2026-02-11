@@ -1,6 +1,6 @@
 import { type UserRole } from "@/generated/prisma/client";
 
-import OwnersManagementTable from "@/components/admin/owners-management-table";
+import OwnersManagementTableClient from "@/components/admin/owners-management-table-client";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -124,7 +124,7 @@ const AdminOwnersPage = async ({ searchParams }: AdminOwnersPageProps) => {
             <Button type="submit">Filtrar</Button>
           </form>
 
-          <OwnersManagementTable
+          <OwnersManagementTableClient
             users={usersResult.items}
             barbershopOptions={barbershopsResult.items.map((barbershop) => ({
               id: barbershop.id,
