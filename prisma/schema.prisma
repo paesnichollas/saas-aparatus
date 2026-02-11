@@ -17,6 +17,7 @@ model Barbershop {
   id                     String                  @id @default(uuid())
   name                   String
   slug                   String                  @unique
+  publicSlug             String                  @unique
   shareSlug              String?                 @unique
   address                String
   description            String

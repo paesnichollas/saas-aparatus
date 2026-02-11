@@ -1,5 +1,6 @@
 "use server";
 
+import { ensureBarbershopPublicSlug } from "@/data/barbershops";
 import { protectedActionClient } from "@/lib/action-client";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
@@ -109,6 +110,7 @@ export const updateBarbershopBranding = protectedActionClient
           slug,
         },
         select: {
+          id: true,
           name: true,
           description: true,
           address: true,
@@ -117,6 +119,8 @@ export const updateBarbershopBranding = protectedActionClient
           slug: true,
         },
       });
+
+      await ensureBarbershopPublicSlug(updatedBarbershop.id);
 
       revalidatePath("/");
       revalidatePath("/barbershops");

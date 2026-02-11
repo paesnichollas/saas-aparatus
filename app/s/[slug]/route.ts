@@ -1,4 +1,7 @@
-import { getBarbershopByShareSlug } from "@/data/barbershops";
+import {
+  ensureBarbershopPublicSlug,
+  resolveBarbershopByShareToken,
+} from "@/data/barbershops";
 import { linkCustomerToBarbershop } from "@/data/customer-barbershops";
 import { auth } from "@/lib/auth";
 import {
@@ -11,16 +14,28 @@ import { NextResponse } from "next/server";
 
 interface ShareRouteContext {
   params: Promise<{
-    shareSlug: string;
+    slug: string;
   }>;
 }
 
 export async function GET(request: Request, context: ShareRouteContext) {
-  const { shareSlug } = await context.params;
-  const barbershop = await getBarbershopByShareSlug(shareSlug);
+  const { slug } = await context.params;
+  const shareResolution = await resolveBarbershopByShareToken(slug);
 
-  if (!barbershop) {
+  if (!shareResolution) {
     return NextResponse.redirect(new URL("/?share=invalid", request.url));
+  }
+
+  const { barbershop, source } = shareResolution;
+
+  if (source !== "public-slug") {
+    const canonicalPublicSlug =
+      barbershop.publicSlug.trim() || (await ensureBarbershopPublicSlug(barbershop.id));
+
+    return NextResponse.redirect(
+      new URL(`/s/${canonicalPublicSlug}`, request.url),
+      301,
+    );
   }
 
   const session = await auth.api.getSession({
@@ -54,7 +69,7 @@ export async function GET(request: Request, context: ShareRouteContext) {
     name: BARBERSHOP_INTENT_COOKIE_NAME,
     value: serializeBarbershopIntentCookie({
       barbershopId: barbershop.id,
-      shareSlug,
+      shareSlug: barbershop.publicSlug,
       timestamp: Date.now(),
     }),
     httpOnly: true,

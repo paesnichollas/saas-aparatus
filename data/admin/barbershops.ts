@@ -1,6 +1,7 @@
 import "server-only";
 
 import { type Prisma } from "@/generated/prisma/client";
+import { ensureBarbershopPublicSlug } from "@/data/barbershops";
 import { demoteOwnerToCustomerByAdmin, promoteUserToOwnerByAdmin } from "@/data/owner-assignment";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/rbac";
@@ -72,6 +73,12 @@ export const adminListBarbershops = async (input: AdminListBarbershopsInput = {}
             },
           },
           {
+            publicSlug: {
+              contains: search,
+              mode: "insensitive",
+            },
+          },
+          {
             owner: {
               is: {
                 OR: [
@@ -108,6 +115,7 @@ export const adminListBarbershops = async (input: AdminListBarbershopsInput = {}
         id: true,
         name: true,
         slug: true,
+        publicSlug: true,
         shareSlug: true,
         phones: true,
         exclusiveBarber: true,
@@ -150,6 +158,7 @@ export const adminGetBarbershop = async (barbershopId: string) => {
       id: true,
       name: true,
       slug: true,
+      publicSlug: true,
       shareSlug: true,
       phones: true,
       exclusiveBarber: true,
@@ -262,6 +271,7 @@ export const adminUpdateBarbershop = async ({
       id: true,
       name: true,
       slug: true,
+      publicSlug: true,
       shareSlug: true,
       phones: true,
       exclusiveBarber: true,
@@ -277,6 +287,8 @@ export const adminUpdateBarbershop = async ({
       },
     },
   });
+
+  await ensureBarbershopPublicSlug(updatedBarbershop.id);
 
   return updatedBarbershop;
 };

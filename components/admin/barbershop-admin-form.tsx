@@ -18,7 +18,7 @@ interface BarbershopAdminFormProps {
     phones: string[];
     exclusiveBarber: boolean;
     stripeEnabled: boolean;
-    shareSlug: string | null;
+    publicSlug: string;
     ownerId: string | null;
     owner: {
       id: string;
@@ -145,10 +145,10 @@ const BarbershopAdminForm = ({ barbershop }: BarbershopAdminFormProps) => {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="admin-barbershop-share-slug">Share slug (readonly)</Label>
+        <Label htmlFor="admin-barbershop-public-slug">Public slug (readonly)</Label>
         <Input
-          id="admin-barbershop-share-slug"
-          value={barbershop.shareSlug ?? "Sem share slug"}
+          id="admin-barbershop-public-slug"
+          value={barbershop.publicSlug}
           readOnly
           disabled
         />

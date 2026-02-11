@@ -1,5 +1,6 @@
 import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { buildPublicSlugCandidate, getPublicSlugBase } from "../lib/public-slug";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -11,14 +12,6 @@ const openingHoursData = Array.from({ length: 7 }, (_, dayOfWeek) => ({
   closeMinute: 18 * 60,
   closed: false,
 }));
-
-const toSlug = (value: string) =>
-  value
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
 
 async function seedDatabase() {
   try {
@@ -78,7 +71,7 @@ async function seedDatabase() {
         name: "Corte de Cabelo",
         description: "Estilo personalizado com as últimas tendências.",
         price: 60.0,
-      imageUrl:
+        imageUrl:
           "https://utfs.io/f/0ddfbd26-a424-43a0-aaf3-c3f1dc6be6d1-1kgxo7.png",
       },
       {
@@ -121,15 +114,28 @@ async function seedDatabase() {
 
     // Criar 10 barbearias com nomes e endereços fictícios
     const barbershops = [];
+    const usedPublicSlugs = new Set<string>();
     for (let i = 0; i < 10; i++) {
       const name = creativeNames[i];
       const address = addresses[i];
       const imageUrl = images[i];
+      const publicSlugBase = getPublicSlugBase(name);
+
+      let publicSlugSuffix = 1;
+      let publicSlug = buildPublicSlugCandidate(publicSlugBase, publicSlugSuffix);
+
+      while (usedPublicSlugs.has(publicSlug)) {
+        publicSlugSuffix += 1;
+        publicSlug = buildPublicSlugCandidate(publicSlugBase, publicSlugSuffix);
+      }
+
+      usedPublicSlugs.add(publicSlug);
 
       const barbershop = await prisma.barbershop.create({
         data: {
           name,
-          slug: `${toSlug(name)}-${i + 1}`,
+          slug: `${publicSlugBase}-${i + 1}`,
+          publicSlug,
           address,
           imageUrl: imageUrl,
           phones: ["(11) 99999-9999", "(11) 99999-9999"],

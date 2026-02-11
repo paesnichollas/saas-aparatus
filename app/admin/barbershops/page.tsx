@@ -82,7 +82,7 @@ const AdminBarbershopsPage = async ({
             <Input
               name="q"
               defaultValue={search}
-              placeholder="Buscar por nome, slug ou owner"
+              placeholder="Buscar por nome, slug, public slug ou owner"
               className="w-full md:max-w-md"
             />
             <Button type="submit">Buscar</Button>
@@ -106,7 +106,12 @@ const AdminBarbershopsPage = async ({
                     <TableCell>
                       <div className="space-y-1">
                         <p className="font-medium">{barbershop.name}</p>
-                        <p className="text-muted-foreground text-xs">{barbershop.slug}</p>
+                        <p className="text-muted-foreground text-xs">
+                          Slug interno: {barbershop.slug}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Compartilhamento: {barbershop.publicSlug}
+                        </p>
                       </div>
                     </TableCell>
                     <TableCell>

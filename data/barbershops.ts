@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@/generated/prisma/client";
 import { CONFIRMED_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
+import { buildPublicSlugCandidate, getPublicSlugBase } from "@/lib/public-slug";
 import { reconcilePendingBookingsForBarbershop } from "@/lib/stripe-booking-reconciliation";
-import { randomUUID } from "node:crypto";
 
 export type AdminBarbershopWithRelations = Prisma.BarbershopGetPayload<{
   include: {
@@ -24,7 +24,7 @@ export type AdminBarbershopWithRelations = Prisma.BarbershopGetPayload<{
   };
 }>;
 
-const SHARE_SLUG_MAX_GENERATION_ATTEMPTS = 10;
+const PUBLIC_SLUG_MAX_GENERATION_ATTEMPTS = 50;
 
 const BARBERSHOP_DETAILS_INCLUDE = {
   barbers: {
@@ -67,7 +67,47 @@ const parseAbsoluteHttpUrl = (value: string | null | undefined) => {
   }
 };
 
-const generateShareSlug = () => randomUUID().replace(/-/g, "");
+const resolveAvailablePublicSlug = async ({
+  baseSlug,
+  excludeBarbershopId,
+}: {
+  baseSlug: string;
+  excludeBarbershopId: string;
+}) => {
+  const existingSlugs = await prisma.barbershop.findMany({
+    where: {
+      NOT: {
+        id: excludeBarbershopId,
+      },
+      OR: [
+        {
+          publicSlug: baseSlug,
+        },
+        {
+          publicSlug: {
+            startsWith: `${baseSlug}-`,
+          },
+        },
+      ],
+    },
+    select: {
+      publicSlug: true,
+    },
+  });
+
+  const takenSlugs = new Set(existingSlugs.map((barbershop) => barbershop.publicSlug));
+
+  let suffix = 1;
+  for (;;) {
+    const candidateSlug = buildPublicSlugCandidate(baseSlug, suffix);
+
+    if (!takenSlugs.has(candidateSlug)) {
+      return candidateSlug;
+    }
+
+    suffix += 1;
+  }
+};
 
 export const getBarbershops = async () => {
   const barbershops = await prisma.barbershop.findMany({
@@ -133,45 +173,47 @@ export const getExclusiveBarbershopByContextId = async (
   return contextBarbershop;
 };
 
-export const ensureBarbershopShareSlug = async (barbershopId: string) => {
+export const ensureBarbershopPublicSlug = async (barbershopId: string) => {
   const barbershop = await prisma.barbershop.findUnique({
     where: {
       id: barbershopId,
     },
     select: {
       id: true,
-      shareSlug: true,
+      name: true,
+      publicSlug: true,
     },
   });
 
   if (!barbershop) {
-    throw new Error("[ensureBarbershopShareSlug] Barbershop not found.");
+    throw new Error("[ensureBarbershopPublicSlug] Barbershop not found.");
   }
 
-  if (barbershop.shareSlug) {
-    return barbershop.shareSlug;
+  if (barbershop.publicSlug.trim().length > 0) {
+    return barbershop.publicSlug;
   }
 
-  for (
-    let attempt = 0;
-    attempt < SHARE_SLUG_MAX_GENERATION_ATTEMPTS;
-    attempt += 1
-  ) {
-    const candidateShareSlug = generateShareSlug();
+  const baseSlug = getPublicSlugBase(barbershop.name);
+
+  for (let attempt = 0; attempt < PUBLIC_SLUG_MAX_GENERATION_ATTEMPTS; attempt += 1) {
+    const candidatePublicSlug = await resolveAvailablePublicSlug({
+      baseSlug,
+      excludeBarbershopId: barbershopId,
+    });
 
     try {
       const updateResult = await prisma.barbershop.updateMany({
         where: {
           id: barbershopId,
-          shareSlug: null,
+          publicSlug: "",
         },
         data: {
-          shareSlug: candidateShareSlug,
+          publicSlug: candidatePublicSlug,
         },
       });
 
       if (updateResult.count === 1) {
-        return candidateShareSlug;
+        return candidatePublicSlug;
       }
     } catch (error) {
       if (
@@ -189,21 +231,21 @@ export const ensureBarbershopShareSlug = async (barbershopId: string) => {
         id: barbershopId,
       },
       select: {
-        shareSlug: true,
+        publicSlug: true,
       },
     });
 
     if (!barbershopWithSlug) {
-      throw new Error("[ensureBarbershopShareSlug] Barbershop not found.");
+      throw new Error("[ensureBarbershopPublicSlug] Barbershop not found.");
     }
 
-    if (barbershopWithSlug.shareSlug) {
-      return barbershopWithSlug.shareSlug;
+    if (barbershopWithSlug.publicSlug.trim().length > 0) {
+      return barbershopWithSlug.publicSlug;
     }
   }
 
   throw new Error(
-    "[ensureBarbershopShareSlug] Could not generate unique share slug.",
+    "[ensureBarbershopPublicSlug] Could not generate unique public slug.",
   );
 };
 
@@ -211,7 +253,7 @@ export const getBarbershopShareLink = async (
   barbershopId: string,
   origin?: string | null,
 ) => {
-  const shareSlug = await ensureBarbershopShareSlug(barbershopId);
+  const publicSlug = await ensureBarbershopPublicSlug(barbershopId);
   const baseUrl =
     parseAbsoluteHttpUrl(process.env.NEXT_PUBLIC_APP_URL) ??
     parseAbsoluteHttpUrl(origin);
@@ -222,24 +264,76 @@ export const getBarbershopShareLink = async (
     );
   }
 
-  return new URL(`/s/${shareSlug}`, baseUrl).toString();
+  return new URL(`/s/${publicSlug}`, baseUrl).toString();
 };
 
-export const getBarbershopByShareSlug = async (shareSlug: string) => {
-  const normalizedShareSlug = shareSlug.trim();
+export type ShareTokenResolutionSource =
+  | "public-slug"
+  | "legacy-id"
+  | "legacy-share-slug";
 
-  if (!normalizedShareSlug) {
+export const getBarbershopByPublicSlug = async (publicSlug: string) => {
+  const normalizedPublicSlug = publicSlug.trim();
+
+  if (!normalizedPublicSlug) {
     return null;
   }
 
   const barbershop = await prisma.barbershop.findUnique({
     where: {
-      shareSlug: normalizedShareSlug,
+      publicSlug: normalizedPublicSlug,
     },
     include: BARBERSHOP_DETAILS_INCLUDE,
   });
 
   return barbershop;
+};
+
+export const resolveBarbershopByShareToken = async (shareToken: string) => {
+  const normalizedShareToken = shareToken.trim();
+
+  if (!normalizedShareToken) {
+    return null;
+  }
+
+  const byPublicSlug = await getBarbershopByPublicSlug(normalizedShareToken);
+
+  if (byPublicSlug) {
+    return {
+      barbershop: byPublicSlug,
+      source: "public-slug" as ShareTokenResolutionSource,
+    };
+  }
+
+  const byLegacyId = await prisma.barbershop.findUnique({
+    where: {
+      id: normalizedShareToken,
+    },
+    include: BARBERSHOP_DETAILS_INCLUDE,
+  });
+
+  if (byLegacyId) {
+    return {
+      barbershop: byLegacyId,
+      source: "legacy-id" as ShareTokenResolutionSource,
+    };
+  }
+
+  const byLegacyShareSlug = await prisma.barbershop.findUnique({
+    where: {
+      shareSlug: normalizedShareToken,
+    },
+    include: BARBERSHOP_DETAILS_INCLUDE,
+  });
+
+  if (byLegacyShareSlug) {
+    return {
+      barbershop: byLegacyShareSlug,
+      source: "legacy-share-slug" as ShareTokenResolutionSource,
+    };
+  }
+
+  return null;
 };
 
 export const getBarbershopsByServiceName = async (serviceName: string) => {
