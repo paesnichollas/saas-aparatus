@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
+import { formatPhoneBR } from "@/lib/utils";
 
 const MIN_PHONE_LENGTH = 10;
 const MAX_PHONE_LENGTH = 11;
@@ -19,28 +20,6 @@ const PHONE_ALREADY_REGISTERED_ERROR_MESSAGE =
 
 const normalizePhoneNumber = (phoneNumber: string) => {
   return phoneNumber.replace(/\D/g, "");
-};
-
-const formatPhoneBR = (phoneNumber: string) => {
-  const digits = normalizePhoneNumber(phoneNumber).slice(0, MAX_PHONE_LENGTH);
-
-  if (digits.length === 0) {
-    return "";
-  }
-
-  if (digits.length <= 2) {
-    return `(${digits}`;
-  }
-
-  if (digits.length <= 6) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
-  }
-
-  if (digits.length <= 10) {
-    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
-  }
-
-  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
 };
 
 const getSafeCallbackUrl = (callbackUrl: string | null) => {

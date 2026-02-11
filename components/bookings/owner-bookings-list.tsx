@@ -5,10 +5,10 @@ import {
   getBookingDisplayStatusLabel,
   getBookingDisplayStatusVariant,
 } from "@/lib/booking-status";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, formatPhoneBR } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarDays, Scissors, UserRound } from "lucide-react";
+import { CalendarDays, Phone, Scissors, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,6 +35,7 @@ type OwnerBookingListItem = {
   }>;
   user: {
     name: string;
+    phone: string | null;
   };
 };
 
@@ -115,6 +116,12 @@ const OwnerBookingsList = ({
                   <UserRound className="size-4" />
                   {booking.user.name}
                 </p>
+                {booking.user.phone && (
+                  <p className="text-muted-foreground flex items-center gap-2 text-sm">
+                    <Phone className="size-4" />
+                    {formatPhoneBR(booking.user.phone)}
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
