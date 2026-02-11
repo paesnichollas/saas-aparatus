@@ -62,6 +62,7 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
       role: true,
       isActive: true,
       barbershopId: true,
+      currentBarbershopId: true,
       barbershop: {
         select: {
           isActive: true,
@@ -89,6 +90,24 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
 
   if (user.ownedBarbershop && !user.ownedBarbershop.isActive) {
     return null;
+  }
+
+  if (
+    user.role === "OWNER" &&
+    user.barbershopId &&
+    user.currentBarbershopId !== user.barbershopId
+  ) {
+    await prisma.user.update({
+      where: {
+        id: user.id,
+      },
+      data: {
+        currentBarbershopId: user.barbershopId,
+      },
+      select: {
+        id: true,
+      },
+    });
   }
 
   return {

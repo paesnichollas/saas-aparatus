@@ -26,6 +26,8 @@ export const linkCustomerToBarbershop = async ({
       },
       select: {
         id: true,
+        role: true,
+        barbershopId: true,
       },
     }),
     prisma.barbershop.findUnique({
@@ -45,27 +47,39 @@ export const linkCustomerToBarbershop = async ({
     };
   }
 
+  const resolvedCurrentBarbershopId =
+    user.role === "OWNER" ? user.barbershopId : normalizedBarbershopId;
+
+  if (!resolvedCurrentBarbershopId) {
+    return {
+      linked: false as const,
+      barbershopId: null,
+    };
+  }
+
   await prisma.$transaction(async (tx) => {
-    await tx.customerBarbershop.upsert({
-      where: {
-        customerId_barbershopId: {
+    if (user.role === "CUSTOMER") {
+      await tx.customerBarbershop.upsert({
+        where: {
+          customerId_barbershopId: {
+            customerId: normalizedUserId,
+            barbershopId: normalizedBarbershopId,
+          },
+        },
+        create: {
           customerId: normalizedUserId,
           barbershopId: normalizedBarbershopId,
         },
-      },
-      create: {
-        customerId: normalizedUserId,
-        barbershopId: normalizedBarbershopId,
-      },
-      update: {},
-    });
+        update: {},
+      });
+    }
 
     await tx.user.update({
       where: {
         id: normalizedUserId,
       },
       data: {
-        currentBarbershopId: normalizedBarbershopId,
+        currentBarbershopId: resolvedCurrentBarbershopId,
       },
       select: {
         id: true,
@@ -75,7 +89,7 @@ export const linkCustomerToBarbershop = async ({
 
   return {
     linked: true as const,
-    barbershopId: normalizedBarbershopId,
+    barbershopId: resolvedCurrentBarbershopId,
   };
 };
 
@@ -91,9 +105,15 @@ export const getPreferredBarbershopIdForUser = async (userId: string) => {
       id: normalizedUserId,
     },
     select: {
+      role: true,
+      barbershopId: true,
       currentBarbershopId: true,
     },
   });
+
+  if (user?.role === "OWNER") {
+    return user.barbershopId;
+  }
 
   if (user?.currentBarbershopId) {
     return user.currentBarbershopId;

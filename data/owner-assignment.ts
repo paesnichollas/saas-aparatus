@@ -83,6 +83,43 @@ const resolveBarbershopIdForPromotion = async ({
   throw new OwnerAssignmentError("Selecione uma barbearia para vincular.");
 };
 
+const resolveCurrentBarbershopIdForDemotion = async ({
+  tx,
+  userId,
+  previousBarbershopId,
+  currentBarbershopId,
+}: {
+  tx: Prisma.TransactionClient;
+  userId: string;
+  previousBarbershopId: string | null;
+  currentBarbershopId: string | null;
+}) => {
+  if (!previousBarbershopId) {
+    return currentBarbershopId;
+  }
+
+  if (currentBarbershopId !== previousBarbershopId) {
+    return currentBarbershopId;
+  }
+
+  const fallbackLinkedBarbershop = await tx.customerBarbershop.findFirst({
+    where: {
+      customerId: userId,
+      barbershopId: {
+        not: previousBarbershopId,
+      },
+    },
+    select: {
+      barbershopId: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  return fallbackLinkedBarbershop?.barbershopId ?? null;
+};
+
 interface PromoteUserToOwnerInput {
   actorUserId: string;
   userId: string;
@@ -185,10 +222,21 @@ export const promoteUserToOwnerByAdmin = async ({
           select: {
             id: true,
             role: true,
+            barbershopId: true,
+            currentBarbershopId: true,
           },
         });
 
         if (previousOwner) {
+          const previousOwnerCurrentBarbershopId =
+            await resolveCurrentBarbershopIdForDemotion({
+              tx,
+              userId: previousOwner.id,
+              previousBarbershopId:
+                previousOwner.barbershopId ?? targetBarbershop.id,
+              currentBarbershopId: previousOwner.currentBarbershopId,
+            });
+
           await tx.user.update({
             where: {
               id: previousOwner.id,
@@ -196,6 +244,7 @@ export const promoteUserToOwnerByAdmin = async ({
             data: {
               role: toNonOwnerRole(previousOwner.role as UserRole),
               barbershopId: null,
+              currentBarbershopId: previousOwnerCurrentBarbershopId,
             },
           });
           transferredOwnershipFromUserId = previousOwner.id;
@@ -232,6 +281,7 @@ export const promoteUserToOwnerByAdmin = async ({
         data: {
           role: OWNER_ROLE,
           barbershopId: targetBarbershop.id,
+          currentBarbershopId: targetBarbershop.id,
         },
         select: {
           id: true,
@@ -317,6 +367,7 @@ export const demoteOwnerToCustomerByAdmin = async ({
         id: true,
         role: true,
         barbershopId: true,
+        currentBarbershopId: true,
       },
     });
 
@@ -344,6 +395,15 @@ export const demoteOwnerToCustomerByAdmin = async ({
       });
     }
 
+    const previousBarbershopId = ownedBarbershop?.id ?? targetUser.barbershopId;
+    const demotedCurrentBarbershopId =
+      await resolveCurrentBarbershopIdForDemotion({
+        tx,
+        userId: targetUser.id,
+        previousBarbershopId,
+        currentBarbershopId: targetUser.currentBarbershopId,
+      });
+
     const updatedUser = await tx.user.update({
       where: {
         id: targetUser.id,
@@ -351,6 +411,7 @@ export const demoteOwnerToCustomerByAdmin = async ({
       data: {
         role: toNonOwnerRole(targetUser.role as UserRole),
         barbershopId: null,
+        currentBarbershopId: demotedCurrentBarbershopId,
       },
       select: {
         id: true,
