@@ -43,7 +43,10 @@ export default async function Home() {
   if (exclusiveBarbershop) {
     return (
       <div>
-        <Header homeHref="/" />
+        <Header
+          homeHref="/"
+          chatHref={`/chat?barbershopPublicSlug=${encodeURIComponent(exclusiveBarbershop.slug)}`}
+        />
         <ExclusiveBarbershopLanding barbershop={exclusiveBarbershop} />
         <Footer />
         <BackToTopButton />

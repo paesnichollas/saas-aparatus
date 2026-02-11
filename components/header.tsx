@@ -9,9 +9,10 @@ import ThemeToggle from "./theme-toggle";
 
 interface HeaderProps {
   homeHref?: string;
+  chatHref?: string;
 }
 
-const Header = async ({ homeHref = "/" }: HeaderProps) => {
+const Header = async ({ homeHref = "/", chatHref = "/chat" }: HeaderProps) => {
   const userRole = await getUserRoleFromSession();
 
   return (
@@ -27,7 +28,7 @@ const Header = async ({ homeHref = "/" }: HeaderProps) => {
       </Link>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Link href="/chat">
+        <Link href={chatHref}>
           <Button variant="outline" size="icon">
             <BotMessageSquare className="size-5" />
           </Button>

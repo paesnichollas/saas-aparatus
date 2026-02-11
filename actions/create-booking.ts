@@ -2,18 +2,25 @@
 
 import { protectedActionClient } from "@/lib/action-client";
 import {
+  BOOKING_SLOT_BUFFER_MINUTES,
+  getBookingDayBounds,
+  getBookingMinuteOfDay,
+  isBookingDateTimeAtOrBeforeNowWithBuffer,
+} from "@/lib/booking-time";
+import {
   getBookingDurationMinutes,
   getBookingStartDate,
 } from "@/lib/booking-calculations";
-import { hasMinuteIntervalOverlap, toMinuteOfDay } from "@/lib/booking-interval";
+import { hasMinuteIntervalOverlap } from "@/lib/booking-interval";
 import { ACTIVE_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
 import { prisma } from "@/lib/prisma";
-import { endOfDay, isPast, startOfDay } from "date-fns";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
 
 const inputSchema = z.object({
+  barbershopId: z.uuid(),
   serviceId: z.uuid(),
+  barberId: z.uuid(),
   date: z.date(),
 });
 
@@ -42,16 +49,24 @@ const hasInvalidServiceData = (service: {
 
 export const createBooking = protectedActionClient
   .inputSchema(inputSchema)
-  .action(async ({ parsedInput: { serviceId, date }, ctx: { user } }) => {
-    if (isPast(date)) {
+  .action(async ({ parsedInput: { barbershopId, serviceId, barberId, date }, ctx: { user } }) => {
+    if (isBookingDateTimeAtOrBeforeNowWithBuffer(date, BOOKING_SLOT_BUFFER_MINUTES)) {
       returnValidationErrors(inputSchema, {
-        _errors: ["Data e hora selecionadas já passaram."],
+        _errors: [
+          "Data e horario selecionados ja passaram ou estao muito proximos do horario atual.",
+        ],
       });
     }
+
+    const {
+      start: selectedDateStart,
+      endExclusive: selectedDateEndExclusive,
+    } = getBookingDayBounds(date);
 
     const service = await prisma.barbershopService.findFirst({
       where: {
         id: serviceId,
+        barbershopId,
         deletedAt: null,
       },
       select: {
@@ -92,30 +107,34 @@ export const createBooking = protectedActionClient
       });
     }
 
-    const defaultBarber = await prisma.barber.findFirst({
+    const barber = await prisma.barber.findFirst({
       where: {
-        barbershopId: service.barbershopId,
-      },
-      orderBy: {
-        name: "asc",
+        id: barberId,
+        barbershopId,
       },
       select: {
         id: true,
       },
     });
 
+    if (!barber) {
+      returnValidationErrors(inputSchema, {
+        _errors: ["Barbeiro nao encontrado para esta barbearia."],
+      });
+    }
+
     const bookings = await prisma.booking.findMany({
       where: {
-        barbershopId: service.barbershopId,
+        barbershopId,
         AND: [
           {
-            OR: [{ barberId: defaultBarber?.id ?? null }, { barberId: null }],
+            OR: [{ barberId: barber.id }, { barberId: null }],
           },
           ACTIVE_BOOKING_PAYMENT_WHERE,
         ],
         date: {
-          gte: startOfDay(date),
-          lte: endOfDay(date),
+          gte: selectedDateStart,
+          lt: selectedDateEndExclusive,
         },
         cancelledAt: null,
       },
@@ -132,10 +151,10 @@ export const createBooking = protectedActionClient
     });
 
     const hasCollision = hasMinuteIntervalOverlap(
-      toMinuteOfDay(date),
+      getBookingMinuteOfDay(date),
       service.durationInMinutes,
       bookings.map((booking) => {
-        const startMinute = toMinuteOfDay(getBookingStartDate(booking));
+        const startMinute = getBookingMinuteOfDay(getBookingStartDate(booking));
         const durationInMinutes = getBookingDurationMinutes(booking);
         return {
           startMinute,
@@ -161,8 +180,8 @@ export const createBooking = protectedActionClient
         totalDurationMinutes: service.durationInMinutes,
         totalPriceInCents: service.priceInCents,
         userId: user.id,
-        barberId: defaultBarber?.id ?? null,
-        barbershopId: service.barbershopId,
+        barberId: barber.id,
+        barbershopId,
         paymentMethod: "IN_PERSON",
         paymentStatus: "PAID",
         services: {

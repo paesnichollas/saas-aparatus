@@ -2,14 +2,19 @@
 
 import { protectedActionClient } from "@/lib/action-client";
 import {
+  BOOKING_SLOT_BUFFER_MINUTES,
+  getBookingDayBounds,
+  getBookingMinuteOfDay,
+  isBookingDateTimeAtOrBeforeNowWithBuffer,
+} from "@/lib/booking-time";
+import {
   calculateBookingTotals,
   getBookingDurationMinutes,
   getBookingStartDate,
 } from "@/lib/booking-calculations";
-import { hasMinuteIntervalOverlap, toMinuteOfDay } from "@/lib/booking-interval";
+import { hasMinuteIntervalOverlap } from "@/lib/booking-interval";
 import { ACTIVE_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
 import { prisma } from "@/lib/prisma";
-import { endOfDay, isPast, startOfDay } from "date-fns";
 import { headers } from "next/headers";
 import { returnValidationErrors } from "next-safe-action";
 import Stripe from "stripe";
@@ -92,11 +97,23 @@ export const createBookingCheckoutSession = protectedActionClient
       parsedInput: { barbershopId, barberId, serviceIds, startAt },
       ctx: { user },
     }) => {
-      if (isPast(startAt)) {
+      if (
+        isBookingDateTimeAtOrBeforeNowWithBuffer(
+          startAt,
+          BOOKING_SLOT_BUFFER_MINUTES,
+        )
+      ) {
         returnValidationErrors(inputSchema, {
-          _errors: ["Data e horario selecionados ja passaram."],
+          _errors: [
+            "Data e horario selecionados ja passaram ou estao muito proximos do horario atual.",
+          ],
         });
       }
+
+      const {
+        start: selectedDateStart,
+        endExclusive: selectedDateEndExclusive,
+      } = getBookingDayBounds(startAt);
 
       const uniqueServiceIds = Array.from(new Set(serviceIds));
       if (uniqueServiceIds.length === 0) {
@@ -198,8 +215,8 @@ export const createBookingCheckoutSession = protectedActionClient
             ACTIVE_BOOKING_PAYMENT_WHERE,
           ],
           date: {
-            gte: startOfDay(startAt),
-            lte: endOfDay(startAt),
+            gte: selectedDateStart,
+            lt: selectedDateEndExclusive,
           },
           cancelledAt: null,
         },
@@ -216,10 +233,10 @@ export const createBookingCheckoutSession = protectedActionClient
       });
 
       const hasCollision = hasMinuteIntervalOverlap(
-        toMinuteOfDay(startAt),
+        getBookingMinuteOfDay(startAt),
         totalDurationMinutes,
         bookings.map((booking) => {
-          const startMinute = toMinuteOfDay(getBookingStartDate(booking));
+          const startMinute = getBookingMinuteOfDay(getBookingStartDate(booking));
           const durationInMinutes = getBookingDurationMinutes(booking);
           return {
             startMinute,

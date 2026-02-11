@@ -2,13 +2,18 @@
 
 import { actionClient } from "@/lib/action-client";
 import {
+  BOOKING_SLOT_BUFFER_MINUTES,
+  getBookingDayBounds,
+  getBookingMinuteOfDay,
+  isSameBookingDay,
+} from "@/lib/booking-time";
+import {
   getBookingDurationMinutes,
   getBookingStartDate,
 } from "@/lib/booking-calculations";
-import { toMinuteOfDay, toTimeSlotLabel } from "@/lib/booking-interval";
+import { toTimeSlotLabel } from "@/lib/booking-interval";
 import { ACTIVE_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
 import { prisma } from "@/lib/prisma";
-import { endOfDay, isSameDay, startOfDay } from "date-fns";
 import { z } from "zod";
 
 const DEFAULT_OPEN_MINUTE = 9 * 60;
@@ -25,6 +30,12 @@ const inputSchema = z.object({
 export const getDateAvailableTimeSlots = actionClient
   .inputSchema(inputSchema)
   .action(async ({ parsedInput: { barbershopId, barberId, serviceId, serviceIds, date } }) => {
+    const {
+      dayOfWeek: selectedDateDayOfWeek,
+      start: selectedDateStart,
+      endExclusive: selectedDateEndExclusive,
+    } = getBookingDayBounds(date);
+
     const uniqueServiceIds = Array.from(
       new Set(serviceIds ?? (serviceId ? [serviceId] : [])),
     );
@@ -42,7 +53,7 @@ export const getDateAvailableTimeSlots = actionClient
           isActive: true,
           openingHours: {
             where: {
-              dayOfWeek: date.getDay(),
+              dayOfWeek: selectedDateDayOfWeek,
             },
             take: 1,
           },
@@ -96,8 +107,8 @@ export const getDateAvailableTimeSlots = actionClient
           ACTIVE_BOOKING_PAYMENT_WHERE,
         ],
         date: {
-          gte: startOfDay(date),
-          lte: endOfDay(date),
+          gte: selectedDateStart,
+          lt: selectedDateEndExclusive,
         },
         cancelledAt: null,
       },
@@ -134,7 +145,7 @@ export const getDateAvailableTimeSlots = actionClient
     }
 
     const occupiedIntervals = bookings.map((booking) => {
-      const startMinute = toMinuteOfDay(getBookingStartDate(booking));
+      const startMinute = getBookingMinuteOfDay(getBookingStartDate(booking));
       const durationInMinutes = getBookingDurationMinutes(booking);
       return {
         startMinute,
@@ -143,7 +154,10 @@ export const getDateAvailableTimeSlots = actionClient
     });
 
     const now = new Date();
-    const isToday = isSameDay(date, now);
+    const isToday = isSameBookingDay(date, now);
+    const minimumAllowedStartMinute = isToday
+      ? getBookingMinuteOfDay(now) + BOOKING_SLOT_BUFFER_MINUTES
+      : null;
     const availableTimeSlots: string[] = [];
     const lastAvailableStartMinute = closeMinute - totalDurationInMinutes;
 
@@ -154,18 +168,12 @@ export const getDateAvailableTimeSlots = actionClient
     let slotStartMinute = openMinute;
 
     while (slotStartMinute <= lastAvailableStartMinute) {
-      if (isToday) {
-        const slotDate = new Date(date);
-        slotDate.setHours(
-          Math.floor(slotStartMinute / 60),
-          slotStartMinute % 60,
-          0,
-          0,
-        );
-        if (slotDate <= now) {
-          slotStartMinute += totalDurationInMinutes;
-          continue;
-        }
+      if (
+        minimumAllowedStartMinute !== null &&
+        slotStartMinute <= minimumAllowedStartMinute
+      ) {
+        slotStartMinute += totalDurationInMinutes;
+        continue;
       }
 
       const slotEndMinute = slotStartMinute + totalDurationInMinutes;

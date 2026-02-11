@@ -4,22 +4,68 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { BotMessageSquare, ChevronLeft, Send } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useState } from "react";
 import { Streamdown } from "streamdown";
 
 import { Button } from "@/components/ui/button";
 
+const INVALID_BARBERSHOP_CONTEXT_MESSAGE = "Contexto da barbearia inválido";
+
 const ChatPage = () => {
-  const { messages, sendMessage, status } = useChat({
-    transport: new DefaultChatTransport({
-      api: "/api/chat",
-    }),
+  const searchParams = useSearchParams();
+  const hasBarbershopPublicSlugParam = searchParams.has("barbershopPublicSlug");
+  const barbershopPublicSlug =
+    searchParams.get("barbershopPublicSlug")?.trim() ?? "";
+
+  const transport = useMemo(() => {
+    const api = hasBarbershopPublicSlugParam
+      ? `/api/chat?barbershopPublicSlug=${encodeURIComponent(barbershopPublicSlug)}`
+      : "/api/chat";
+
+    return new DefaultChatTransport({
+      api,
+      fetch: async (input, init) => {
+        const response = await fetch(input, init);
+
+        if (response.ok) {
+          return response;
+        }
+
+        let message = "Nao foi possivel iniciar o chat.";
+
+        try {
+          const payload = (await response.json()) as { error?: unknown };
+          if (
+            typeof payload.error === "string" &&
+            payload.error.trim().length > 0
+          ) {
+            message = payload.error.trim();
+          }
+        } catch (parseError) {
+          void parseError;
+        }
+
+        throw new Error(message);
+      },
+    });
+  }, [barbershopPublicSlug, hasBarbershopPublicSlugParam]);
+
+  const { messages, sendMessage, status, error } = useChat({
+    transport,
   });
   const [input, setInput] = useState("");
 
+  const hasInvalidBarbershopContext =
+    error?.message === INVALID_BARBERSHOP_CONTEXT_MESSAGE;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim() && status === "ready") {
+    if (
+      input.trim() &&
+      status === "ready" &&
+      !hasInvalidBarbershopContext
+    ) {
       sendMessage({ text: input });
       setInput("");
     }
@@ -60,6 +106,14 @@ const ChatPage = () => {
             as barbearias disponíveis perto de você e responder às suas dúvidas.
           </p>
         </div>
+
+        {error ? (
+          <div className="px-3 pt-6">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
+              <p className="text-sm text-destructive">{error.message}</p>
+            </div>
+          </div>
+        ) : null}
 
         {/* Chat Messages */}
         {messages.map((message) => (
@@ -112,12 +166,14 @@ const ChatPage = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Digite sua mensagem"
-            disabled={isLoading}
+            disabled={isLoading || hasInvalidBarbershopContext}
             className="bg-background text-foreground placeholder:text-muted-foreground flex-1 rounded-full px-4 py-3 text-sm outline-none"
           />
           <Button
             type="submit"
-            disabled={isLoading || !input.trim()}
+            disabled={
+              isLoading || !input.trim() || hasInvalidBarbershopContext
+            }
             className="size-[42px] shrink-0 rounded-full"
           >
             <Send className="size-5" />
