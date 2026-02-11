@@ -2,6 +2,7 @@ import { BotMessageSquare } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
+import { SHOW_CHATBOT_ENTRYPOINTS } from "@/constants/feature-flags";
 import { getUserRoleFromSession } from "@/lib/rbac";
 import { Button } from "./ui/button";
 import MenuSheet from "./menu-sheet";
@@ -28,11 +29,13 @@ const Header = async ({ homeHref = "/", chatHref = "/chat" }: HeaderProps) => {
       </Link>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Link href={chatHref}>
-          <Button variant="outline" size="icon">
-            <BotMessageSquare className="size-5" />
-          </Button>
-        </Link>
+        {SHOW_CHATBOT_ENTRYPOINTS ? (
+          <Link href={chatHref}>
+            <Button variant="outline" size="icon">
+              <BotMessageSquare className="size-5" />
+            </Button>
+          </Link>
+        ) : null}
         <MenuSheet
           homeHref={homeHref}
           userRole={userRole}

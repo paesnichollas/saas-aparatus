@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PageSectionContent, PageSectionTitle } from "@/components/ui/page";
+import { SHOW_CHATBOT_ENTRYPOINTS } from "@/constants/feature-flags";
 import { adminListBarbershops } from "@/data/admin/barbershops";
 import { getOwnerBarbershopIdByUserId } from "@/data/barbershops";
 import { isAdmin, requireOwnerOrAdmin } from "@/lib/rbac";
@@ -108,11 +109,13 @@ const OwnerReportsPage = async ({ searchParams }: OwnerReportsPageProps) => {
               faturamento.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild className="gap-2">
-              <Link href="/chat">Falar com o suporte</Link>
-            </Button>
-          </CardContent>
+          {SHOW_CHATBOT_ENTRYPOINTS ? (
+            <CardContent>
+              <Button asChild className="gap-2">
+                <Link href="/chat">Falar com o suporte</Link>
+              </Button>
+            </CardContent>
+          ) : null}
         </Card>
       </PageSectionContent>
     );

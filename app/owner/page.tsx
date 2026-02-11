@@ -20,6 +20,7 @@ import {
   getOwnerBarbershopByUserId,
 } from "@/data/barbershops";
 import { getServicesByBarbershopId } from "@/data/services";
+import { SHOW_CHATBOT_ENTRYPOINTS } from "@/constants/feature-flags";
 import { getBookingStartDate } from "@/lib/booking-calculations";
 import { requireOwnerOrAdmin } from "@/lib/rbac";
 import { BarChart3, MessageCircleMore, Phone } from "lucide-react";
@@ -56,14 +57,16 @@ const OwnerPage = async () => {
               Fale com o suporte para vincular sua barbearia a sua conta.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <Button asChild className="gap-2">
-              <Link href="/chat">
-                <MessageCircleMore className="size-4" />
-                Falar com o suporte
-              </Link>
-            </Button>
-          </CardContent>
+          {SHOW_CHATBOT_ENTRYPOINTS ? (
+            <CardContent>
+              <Button asChild className="gap-2">
+                <Link href="/chat">
+                  <MessageCircleMore className="size-4" />
+                  Falar com o suporte
+                </Link>
+              </Button>
+            </CardContent>
+          ) : null}
         </Card>
       </PageSectionContent>
     );
