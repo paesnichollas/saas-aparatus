@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import {
@@ -18,6 +19,8 @@ interface PhoneAuthRequestBody {
 const MIN_NAME_LENGTH = 2;
 const FALLBACK_CUSTOMER_NAME = "Cliente";
 const ACCOUNT_DEACTIVATED_ERROR_MESSAGE = "Conta desativada";
+const PHONE_ALREADY_REGISTERED_ERROR_MESSAGE =
+  "J\u00E1 h\u00E1 um usu\u00E1rio cadastrado com esse telefone.";
 
 const getSafeCallbackUrl = (callbackUrl: string | undefined) => {
   if (!callbackUrl) {
@@ -57,13 +60,17 @@ const appendSetCookieHeaders = (
 };
 
 const getNormalizedCustomerName = (name: string | undefined) => {
-  const normalizedName = name?.trim();
+  const normalizedName = name?.trim().replace(/\s+/g, " ");
 
   if (!normalizedName || normalizedName.length < MIN_NAME_LENGTH) {
     return FALLBACK_CUSTOMER_NAME;
   }
 
   return normalizedName;
+};
+
+const getComparableCustomerName = (name: string) => {
+  return name.trim().replace(/\s+/g, " ");
 };
 
 const isInactiveUser = (user: {
@@ -177,6 +184,21 @@ export async function POST(request: Request) {
     );
   }
 
+  if (existingUser) {
+    const comparableExistingUserName = getComparableCustomerName(
+      existingUser.name,
+    );
+
+    if (comparableExistingUserName !== normalizedCustomerName) {
+      return NextResponse.json(
+        {
+          error: PHONE_ALREADY_REGISTERED_ERROR_MESSAGE,
+        },
+        { status: 409 },
+      );
+    }
+  }
+
   let authResponse: Response;
 
   if (existingUser) {
@@ -248,22 +270,36 @@ export async function POST(request: Request) {
   });
 
   if (user) {
-    const shouldUpdateName = user.name !== normalizedCustomerName;
     const shouldUpdatePhone = user.phone !== normalizedPhoneNumber;
 
-    if (shouldUpdateName || shouldUpdatePhone) {
-      await prisma.user.update({
-        where: {
-          id: user.id,
-        },
-        data: {
-          name: normalizedCustomerName,
-          phone: normalizedPhoneNumber,
-        },
-        select: {
-          id: true,
-        },
-      });
+    if (shouldUpdatePhone) {
+      try {
+        await prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            phone: normalizedPhoneNumber,
+          },
+          select: {
+            id: true,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          return NextResponse.json(
+            {
+              error: PHONE_ALREADY_REGISTERED_ERROR_MESSAGE,
+            },
+            { status: 409 },
+          );
+        }
+
+        throw error;
+      }
     }
   }
 

@@ -13,6 +13,8 @@ import { authClient } from "@/lib/auth-client";
 
 const MIN_PHONE_LENGTH = 10;
 const MAX_PHONE_LENGTH = 11;
+const PHONE_ALREADY_REGISTERED_ERROR_MESSAGE =
+  "J\u00E1 h\u00E1 um usu\u00E1rio cadastrado com esse telefone.";
 
 const normalizePhoneNumber = (phoneNumber: string) => {
   return phoneNumber.replace(/\D/g, "");
@@ -125,18 +127,27 @@ const AuthPage = () => {
     setIsPhoneLoading(false);
 
     if (!response.ok) {
-      let errorMessage = "Nao foi possivel autenticar com nome e telefone.";
+      let responseErrorMessage: string | null = null;
 
       try {
         const responseJson = (await response.json()) as { error?: string };
         if (responseJson.error) {
-          errorMessage = responseJson.error;
+          responseErrorMessage = responseJson.error;
         }
       } catch {
         // No-op.
       }
 
-      toast.error(errorMessage);
+      if (response.status === 409) {
+        toast.error(
+          responseErrorMessage ?? PHONE_ALREADY_REGISTERED_ERROR_MESSAGE,
+        );
+        return;
+      }
+
+      toast.error(
+        responseErrorMessage ?? "Nao foi possivel autenticar com nome e telefone.",
+      );
       return;
     }
 

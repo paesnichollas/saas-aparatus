@@ -161,6 +161,7 @@ model User {
   customerBarbershops CustomerBarbershop[]
 
   @@unique([email])
+  @@unique([name, phone])
   @@index([barbershopId])
   @@index([currentBarbershopId])
   @@map("user")

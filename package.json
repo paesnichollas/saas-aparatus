@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "check:user-name-phone-duplicates": "tsx prisma/check-user-name-phone-duplicates.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
