@@ -1,6 +1,6 @@
 "use server";
 
-import { protectedActionClient } from "@/lib/action-client";
+import { criticalActionClient } from "@/lib/action-client";
 import {
   BOOKING_SLOT_BUFFER_MINUTES,
   getBookingDayBounds,
@@ -90,7 +90,7 @@ const getAppBaseUrl = async () => {
   return parseAbsoluteHttpUrl(`${protocol}://${host}`);
 };
 
-export const createBookingCheckoutSession = protectedActionClient
+export const createBookingCheckoutSession = criticalActionClient
   .inputSchema(inputSchema)
   .action(
     async ({

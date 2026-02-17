@@ -148,7 +148,12 @@ model User {
   id                 String                @id
   name               String
   email              String
+  provider           String                @default("credentials")
+  contactEmail       String?               @unique
   phone              String?               @unique
+  phoneVerified      Boolean               @default(false)
+  phoneVerifiedAt    DateTime?
+  profileCompleted   Boolean               @default(false)
   emailVerified      Boolean               @default(false)
   image              String?
   role               UserRole              @default(CUSTOMER)

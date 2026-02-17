@@ -2,11 +2,16 @@
 
 import { createBookingCheckoutSession } from "@/actions/create-booking-checkout-session";
 import { useGetDateAvailableTimeSlots } from "@/hooks/data/use-get-date-availabe-time-slots";
+import {
+  buildCompleteProfileUrl,
+  isProfileIncompleteCode,
+} from "@/lib/profile-completion";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Barber, Barbershop, BarbershopService } from "@/generated/prisma/client";
 import { loadStripe } from "@stripe/stripe-js";
 import { ptBR } from "date-fns/locale";
 import { Check, Loader2 } from "lucide-react";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -29,6 +34,8 @@ interface BookingSheetProps {
 }
 
 const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [sheetIsOpen, setSheetIsOpen] = useState(false);
   const [selectedBarberId, setSelectedBarberId] = useState<string | undefined>(
     barbers[0]?.id,
@@ -68,6 +75,15 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
       return accumulator + service.priceInCents;
     }, 0);
   }, [selectedServices]);
+  const currentReturnToPath = useMemo(() => {
+    const search = searchParams.toString();
+
+    if (!search) {
+      return pathname;
+    }
+
+    return `${pathname}?${search}`;
+  }, [pathname, searchParams]);
 
   const canConfirmBooking = Boolean(
     selectedBarberId &&
@@ -116,6 +132,11 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
 
     if (result.validationErrors) {
       return toast.error(result.validationErrors._errors?.[0]);
+    }
+
+    if (isProfileIncompleteCode(result.serverError)) {
+      window.location.href = buildCompleteProfileUrl(currentReturnToPath);
+      return;
     }
 
     if (result.serverError) {

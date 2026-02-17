@@ -1,6 +1,13 @@
 import { createBooking } from "@/actions/create-booking";
 import { auth } from "@/lib/auth";
 import { parseBookingDateTime } from "@/lib/booking-time";
+import {
+  PROFILE_INCOMPLETE_ERROR_MESSAGE,
+  PROFILE_INCOMPLETE_CODE,
+  buildCompleteProfileUrl,
+  getSafeReturnToPath,
+  isProfileIncompleteCode,
+} from "@/lib/profile-completion";
 import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -42,9 +49,29 @@ const isUnauthorizedErrorMessage = (message: string) => {
   return normalizedMessage.includes("nao autorizado") || normalizedMessage.includes("login");
 };
 
+const isProfileIncompleteErrorMessage = (message: string) => {
+  return isProfileIncompleteCode(message);
+};
+
 const isConflictErrorMessage = (message: string) => {
   const normalizedMessage = message.toLowerCase();
   return normalizedMessage.includes("agendad") || normalizedMessage.includes("ocupad");
+};
+
+const getCompleteProfileRedirectUrlFromRequest = (request: Request) => {
+  const refererHeader = request.headers.get("referer");
+
+  if (!refererHeader) {
+    return buildCompleteProfileUrl("/");
+  }
+
+  try {
+    const refererUrl = new URL(refererHeader);
+    const refererPath = `${refererUrl.pathname}${refererUrl.search}`;
+    return buildCompleteProfileUrl(getSafeReturnToPath(refererPath));
+  } catch {
+    return buildCompleteProfileUrl("/");
+  }
 };
 
 export const POST = async (request: Request) => {
@@ -114,6 +141,17 @@ export const POST = async (request: Request) => {
 
   const serverMessage = getServerErrorMessage(createBookingResult.serverError);
   if (serverMessage) {
+    if (isProfileIncompleteErrorMessage(serverMessage)) {
+      return NextResponse.json(
+        {
+          code: PROFILE_INCOMPLETE_CODE,
+          error: PROFILE_INCOMPLETE_ERROR_MESSAGE,
+          redirectTo: getCompleteProfileRedirectUrlFromRequest(request),
+        },
+        { status: 403 },
+      );
+    }
+
     return NextResponse.json(
       {
         error: serverMessage,

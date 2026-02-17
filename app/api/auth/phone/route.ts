@@ -9,6 +9,7 @@ import {
   isValidPhoneNumber,
   normalizePhoneNumber,
 } from "@/lib/auth-phone";
+import { normalizePhoneToE164 } from "@/lib/phone-normalization";
 
 interface PhoneAuthRequestBody {
   name?: string;
@@ -134,8 +135,9 @@ export async function POST(request: Request) {
   }
 
   const normalizedPhoneNumber = normalizePhoneNumber(requestBody.phone ?? "");
+  const normalizedPhoneE164 = normalizePhoneToE164(normalizedPhoneNumber);
 
-  if (!isValidPhoneNumber(normalizedPhoneNumber)) {
+  if (!isValidPhoneNumber(normalizedPhoneNumber) || !normalizedPhoneE164) {
     return NextResponse.json(
       {
         error: "Informe um telefone valido.",
@@ -266,21 +268,29 @@ export async function POST(request: Request) {
       id: true,
       name: true,
       phone: true,
+      provider: true,
     },
   });
 
   if (user) {
-    const shouldUpdatePhone = user.phone !== normalizedPhoneNumber;
+    const shouldUpdatePhone = user.phone !== normalizedPhoneE164;
+    const shouldUpdateProvider = user.provider !== "phone";
 
-    if (shouldUpdatePhone) {
+    if (shouldUpdatePhone || shouldUpdateProvider) {
+      const userDataToUpdate: Prisma.UserUpdateInput = {
+        provider: "phone",
+      };
+
+      if (shouldUpdatePhone) {
+        userDataToUpdate.phone = normalizedPhoneE164;
+      }
+
       try {
         await prisma.user.update({
           where: {
             id: user.id,
           },
-          data: {
-            phone: normalizedPhoneNumber,
-          },
+          data: userDataToUpdate,
           select: {
             id: true,
           },

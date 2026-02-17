@@ -5,6 +5,11 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "./auth";
+import { buildCompleteProfileUrl } from "./profile-completion";
+import {
+  assertUserHasCompletedProfile,
+  isProfileIncompleteError,
+} from "./profile-completion-guard";
 import { prisma } from "./prisma";
 
 export type SessionUser = {
@@ -183,4 +188,38 @@ export const requireOwnerOrAdmin = async (
 
 export const requireOwner = async (options: RequireRoleOptions = {}) => {
   return requireRole(["OWNER"], options);
+};
+
+const redirectIfProfileIncomplete = async (userId: string, returnTo: string) => {
+  try {
+    await assertUserHasCompletedProfile(userId);
+  } catch (error) {
+    if (isProfileIncompleteError(error)) {
+      redirect(buildCompleteProfileUrl(returnTo));
+    }
+
+    throw error;
+  }
+};
+
+export const requireOwnerOrAdminWithCompleteProfile = async (
+  returnTo: string,
+  options: RequireRoleOptions = {},
+) => {
+  const user = await requireOwnerOrAdmin(options);
+
+  await redirectIfProfileIncomplete(user.id, returnTo);
+
+  return user;
+};
+
+export const requireAdminWithCompleteProfile = async (
+  returnTo: string,
+  options: RequireRoleOptions = {},
+) => {
+  const user = await requireAdmin(options);
+
+  await redirectIfProfileIncomplete(user.id, returnTo);
+
+  return user;
 };

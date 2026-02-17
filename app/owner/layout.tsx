@@ -2,14 +2,14 @@ import Footer from "@/components/footer";
 import Header from "@/components/header";
 import { Badge } from "@/components/ui/badge";
 import { PageContainer } from "@/components/ui/page";
-import { isAdmin, requireOwnerOrAdmin } from "@/lib/rbac";
+import { isAdmin, requireOwnerOrAdminWithCompleteProfile } from "@/lib/rbac";
 
 const OwnerLayout = async ({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
-  const user = await requireOwnerOrAdmin();
+  const user = await requireOwnerOrAdminWithCompleteProfile("/owner");
 
   return (
     <div>

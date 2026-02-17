@@ -1,6 +1,8 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
+import { getBrPhoneDigits } from "./phone-normalization";
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -17,7 +19,7 @@ export function formatPhoneBR(phoneNumber: string | null) {
     return "";
   }
 
-  const digits = phoneNumber.replace(/\D/g, "");
+  const digits = getBrPhoneDigits(phoneNumber);
 
   if (digits.length === 0) {
     return "";

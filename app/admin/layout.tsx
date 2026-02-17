@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { requireAdmin } from "@/lib/rbac";
+import { requireAdminWithCompleteProfile } from "@/lib/rbac";
 
 const adminNavigationItems = [
   { href: "/admin", label: "Dashboard" },
@@ -16,7 +16,7 @@ const AdminLayout = async ({
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
-  await requireAdmin();
+  await requireAdminWithCompleteProfile("/admin");
 
   return (
     <div className="min-h-screen">

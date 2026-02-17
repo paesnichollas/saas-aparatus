@@ -1,6 +1,6 @@
 "use server";
 
-import { protectedActionClient } from "@/lib/action-client";
+import { criticalActionClient } from "@/lib/action-client";
 import {
   BOOKING_SLOT_BUFFER_MINUTES,
   getBookingDayBounds,
@@ -47,7 +47,7 @@ const hasInvalidServiceData = (service: {
   return false;
 };
 
-export const createBooking = protectedActionClient
+export const createBooking = criticalActionClient
   .inputSchema(inputSchema)
   .action(async ({ parsedInput: { barbershopId, serviceId, barberId, date }, ctx: { user } }) => {
     if (isBookingDateTimeAtOrBeforeNowWithBuffer(date, BOOKING_SLOT_BUFFER_MINUTES)) {

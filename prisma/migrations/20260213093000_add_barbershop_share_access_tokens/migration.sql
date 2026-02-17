@@ -1,0 +1,2 @@
+-- No-op placeholder migration file.
+-- This file was missing and blocks `prisma migrate deploy` when absent.

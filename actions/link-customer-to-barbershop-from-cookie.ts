@@ -9,9 +9,12 @@ import {
   parseBarbershopIntentCookie,
 } from "@/lib/barbershop-context";
 import { verifyShareLinkToken } from "@/lib/share-link-token";
+import { resolveAndPersistUserProviderById } from "@/lib/user-provider-server";
 
 export const linkCustomerToBarbershopFromCookie = protectedActionClient.action(
   async ({ ctx: { user } }) => {
+    await resolveAndPersistUserProviderById(user.id);
+
     const cookieStore = await cookies();
     const barbershopIntentCookie = cookieStore.get(
       BARBERSHOP_INTENT_COOKIE_NAME,
