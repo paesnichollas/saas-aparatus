@@ -85,7 +85,13 @@ const BookingInfoSheet = ({ booking, onClose }: BookingInfoSheetProps) => {
 
       <div className="flex flex-1 flex-col gap-6 px-5 py-6">
         <div className="relative h-45 w-full overflow-hidden rounded-lg">
-          <Image src="/map.png" alt="Mapa" fill className="object-cover" />
+          <Image
+            src="/map.png"
+            alt="Mapa"
+            fill
+            className="object-cover"
+            sizes="(max-width: 48rem) 100vw, 28rem"
+          />
           <div className="bg-background absolute right-5 bottom-5 left-5 flex items-center gap-3 rounded-lg px-5 py-3">
             <Avatar className="size-12">
               <AvatarImage src={booking.barbershop.imageUrl} />

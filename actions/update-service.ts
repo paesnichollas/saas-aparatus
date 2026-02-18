@@ -3,6 +3,7 @@
 import { getOwnerBarbershopIdByUserId } from "@/data/barbershops";
 import { getServiceById, updateServiceById } from "@/data/services";
 import { protectedActionClient } from "@/lib/action-client";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -88,10 +89,11 @@ export const updateService = protectedActionClient
       });
 
       revalidatePath("/owner");
-      revalidatePath("/");
-      revalidatePath("/barbershops");
-      revalidatePath(`/b/${service.barbershop.slug}`);
-      revalidatePath(`/barbershops/${service.barbershop.id}`);
+      revalidatePublicBarbershopCache({
+        barbershopId: service.barbershop.id,
+        slug: service.barbershop.slug,
+        publicSlug: service.barbershop.publicSlug,
+      });
 
       return updatedService;
     },

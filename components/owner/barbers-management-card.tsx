@@ -45,7 +45,7 @@ import { ImageOff, Loader2, Pencil, Plus, Scissors, Trash2 } from "lucide-react"
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, memo, useCallback, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -121,6 +121,65 @@ const getBarberInitials = (name: string) => {
   return initials.join("").toUpperCase();
 };
 
+type BarberRowProps = {
+  barber: BarberListItem;
+  onEdit: (barber: BarberListItem) => void;
+  onDelete: (barber: BarberListItem) => void;
+};
+
+const BarberRow = memo(({ barber, onEdit, onDelete }: BarberRowProps) => {
+  const handleEditClick = useCallback(() => {
+    onEdit(barber);
+  }, [onEdit, barber]);
+
+  const handleDeleteClick = useCallback(() => {
+    onDelete(barber);
+  }, [onDelete, barber]);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <p className="font-medium">{barber.name}</p>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <Avatar className="size-8">
+            <AvatarImage src={barber.imageUrl ?? undefined} />
+            <AvatarFallback>{getBarberInitials(barber.name)}</AvatarFallback>
+          </Avatar>
+          <Badge variant="secondary">
+            {barber.imageUrl ? "Com foto" : "Sem foto"}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleEditClick}
+          >
+            <Pencil className="size-3.5" />
+            Editar
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleDeleteClick}
+          >
+            <Trash2 className="size-3.5" />
+            Remover
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+BarberRow.displayName = "BarberRow";
+
 const BarbersManagementCard = ({
   barbershopId,
   barbers,
@@ -156,24 +215,24 @@ const BarbersManagementCard = ({
   const isSavingBarber = isCreatingBarber || isUpdatingBarber;
   const isBarberFormBusy = isSavingBarber || isUploadingBarberImage;
 
-  const handleCreateClick = () => {
+  const handleCreateClick = useCallback(() => {
     setBarberInEdition(null);
     setBarberImageUrl(null);
     barberForm.reset(DEFAULT_FORM_VALUES);
     setIsBarberFormOpen(true);
-  };
+  }, [barberForm]);
 
-  const handleEditClick = (barber: BarberListItem) => {
+  const handleEditClick = useCallback((barber: BarberListItem) => {
     setBarberInEdition(barber);
     setBarberImageUrl(barber.imageUrl);
     barberForm.reset(toFormValues(barber));
     setIsBarberFormOpen(true);
-  };
+  }, [barberForm]);
 
-  const handleDeleteClick = (barber: BarberListItem) => {
+  const handleDeleteClick = useCallback((barber: BarberListItem) => {
     setBarberToDelete(barber);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
   const handleBarberFormOpenChange = (open: boolean) => {
     if (!open && isBarberFormBusy) {
@@ -366,46 +425,12 @@ const BarbersManagementCard = ({
               </TableHeader>
               <TableBody>
                 {barberList.map((barber) => (
-                  <TableRow key={barber.id}>
-                    <TableCell>
-                      <p className="font-medium">{barber.name}</p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="size-8">
-                          <AvatarImage src={barber.imageUrl ?? undefined} />
-                          <AvatarFallback>
-                            {getBarberInitials(barber.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <Badge variant="secondary">
-                          {barber.imageUrl ? "Com foto" : "Sem foto"}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => handleEditClick(barber)}
-                        >
-                          <Pencil className="size-3.5" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => handleDeleteClick(barber)}
-                        >
-                          <Trash2 className="size-3.5" />
-                          Remover
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <BarberRow
+                    key={barber.id}
+                    barber={barber}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -492,6 +517,7 @@ const BarbersManagementCard = ({
                       alt={watchedBarberName?.trim() || "Preview do barbeiro"}
                       fill
                       className="object-cover"
+                      sizes="(max-width: 48rem) 100vw, 36rem"
                     />
                   ) : (
                     <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">

@@ -288,7 +288,10 @@ export const adminUpdateBarbershop = async ({
     },
   });
 
-  await ensureBarbershopPublicSlug(updatedBarbershop.id);
+  const publicSlug = await ensureBarbershopPublicSlug(updatedBarbershop.id);
 
-  return updatedBarbershop;
+  return {
+    ...updatedBarbershop,
+    publicSlug,
+  };
 };

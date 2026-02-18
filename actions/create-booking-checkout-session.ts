@@ -1,6 +1,8 @@
 "use server";
 
 import { protectedActionClient } from "@/lib/action-client";
+import { revalidateBookingSurfaces } from "@/lib/cache-invalidation";
+import { scheduleBookingNotificationJobs } from "@/lib/notifications/notification-jobs";
 import {
   BOOKING_SLOT_BUFFER_MINUTES,
   getBookingDayBounds,
@@ -279,6 +281,9 @@ export const createBookingCheckoutSession = protectedActionClient
             id: true,
           },
         });
+
+        await scheduleBookingNotificationJobs(booking.id);
+        revalidateBookingSurfaces();
 
         return {
           kind: "created" as const,

@@ -21,6 +21,7 @@ const ServiceItem = ({ service, fallbackImageUrl }: ServiceItemProps) => {
           alt={service.name}
           fill
           className="rounded-xl object-cover"
+          sizes="6.875rem"
         />
       </div>
 

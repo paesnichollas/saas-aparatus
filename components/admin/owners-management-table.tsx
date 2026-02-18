@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { ChangeEvent, memo, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
@@ -9,8 +9,6 @@ import { adminDisableBarbershopAccessAction } from "@/actions/admin-disable-barb
 import { adminEnableBarbershopAccessAction } from "@/actions/admin-enable-barbershop-access";
 import { adminPromoteToOwnerAndAssignBarbershopAction } from "@/actions/admin-promote-to-owner-and-assign-barbershop";
 import { adminUpdateUserRoleAction } from "@/actions/admin-update-user-role";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +21,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -51,6 +51,13 @@ interface OwnersManagementTableProps {
     name: string;
   }>;
 }
+
+type OwnerUser = OwnersManagementTableProps["users"][number];
+type UpdatableRole = "CUSTOMER" | "ADMIN";
+type BarbershopAccessParams = {
+  userId: string;
+  barbershopId: string;
+};
 
 const getValidationErrorMessage = (validationErrors: unknown) => {
   const getFirstErrorFromNode = (value: unknown): string | null => {
@@ -85,6 +92,188 @@ const getValidationErrorMessage = (validationErrors: unknown) => {
   return getFirstErrorFromNode(validationErrors);
 };
 
+type OwnerUserRowProps = {
+  barbershopDatalistId: string;
+  isCurrentRowBusy: boolean;
+  onDisableBarbershopAccess: (params: BarbershopAccessParams) => void;
+  onEnableBarbershopAccess: (params: BarbershopAccessParams) => void;
+  onPromoteToOwner: (userId: string) => void;
+  onSelectedBarbershopChange: (userId: string, value: string) => void;
+  onUpdateRole: (userId: string, role: UpdatableRole) => void;
+  selectedBarbershopId: string;
+  user: OwnerUser;
+};
+
+const OwnerUserRow = memo(
+  ({
+    barbershopDatalistId,
+    isCurrentRowBusy,
+    onDisableBarbershopAccess,
+    onEnableBarbershopAccess,
+    onPromoteToOwner,
+    onSelectedBarbershopChange,
+    onUpdateRole,
+    selectedBarbershopId,
+    user,
+  }: OwnerUserRowProps) => {
+    const ownedBarbershop = user.ownedBarbershop;
+
+    const handleSetAdminRole = useCallback(() => {
+      onUpdateRole(user.id, "ADMIN");
+    }, [onUpdateRole, user.id]);
+
+    const handleSetCustomerRole = useCallback(() => {
+      onUpdateRole(user.id, "CUSTOMER");
+    }, [onUpdateRole, user.id]);
+
+    const handleBarbershopStatusChange = useCallback(() => {
+      if (!ownedBarbershop) {
+        return;
+      }
+
+      if (ownedBarbershop.isActive) {
+        onDisableBarbershopAccess({
+          userId: user.id,
+          barbershopId: ownedBarbershop.id,
+        });
+        return;
+      }
+
+      onEnableBarbershopAccess({
+        userId: user.id,
+        barbershopId: ownedBarbershop.id,
+      });
+    }, [onDisableBarbershopAccess, onEnableBarbershopAccess, ownedBarbershop, user.id]);
+
+    const handleBarbershopInputChange = useCallback(
+      (event: ChangeEvent<HTMLInputElement>) => {
+        onSelectedBarbershopChange(user.id, event.target.value);
+      },
+      [onSelectedBarbershopChange, user.id],
+    );
+
+    const handlePromoteToOwnerClick = useCallback(() => {
+      onPromoteToOwner(user.id);
+    }, [onPromoteToOwner, user.id]);
+
+    return (
+      <TableRow>
+        <TableCell>
+          <div className="space-y-1">
+            <p className="font-medium">{user.name}</p>
+            <p className="text-muted-foreground text-xs">{user.email}</p>
+          </div>
+        </TableCell>
+        <TableCell>{user.role}</TableCell>
+        <TableCell>
+          <Badge variant={user.isActive ? "secondary" : "destructive"}>
+            {user.isActive ? "Ativo" : "Inativo"}
+          </Badge>
+        </TableCell>
+        <TableCell>{ownedBarbershop?.name ?? "Sem ownership"}</TableCell>
+        <TableCell>
+          {ownedBarbershop ? (
+            <Badge variant={ownedBarbershop.isActive ? "secondary" : "destructive"}>
+              {ownedBarbershop.isActive ? "Ativa" : "Inativa"}
+            </Badge>
+          ) : (
+            "-"
+          )}
+        </TableCell>
+        <TableCell>
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {user.role !== "ADMIN" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isCurrentRowBusy}
+                  onClick={handleSetAdminRole}
+                >
+                  Tornar ADMIN
+                </Button>
+              ) : null}
+
+              {user.role !== "CUSTOMER" ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isCurrentRowBusy}
+                  onClick={handleSetCustomerRole}
+                >
+                  Tornar CUSTOMER
+                </Button>
+              ) : null}
+            </div>
+
+            {ownedBarbershop ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    type="button"
+                    variant={ownedBarbershop.isActive ? "destructive" : "outline"}
+                    size="sm"
+                    disabled={isCurrentRowBusy}
+                  >
+                    {ownedBarbershop.isActive
+                      ? "Desabilitar acesso"
+                      : "Reativar acesso"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {ownedBarbershop.isActive
+                        ? "Desabilitar acesso da barbearia?"
+                        : "Reativar acesso da barbearia?"}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {ownedBarbershop.isActive
+                        ? "Esta acao desabilita a barbearia, o owner e todos os clientes vinculados, alem de encerrar sessoes ativas."
+                        : "Esta acao reativa a barbearia, o owner e todos os clientes vinculados."}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBarbershopStatusChange}>
+                      Confirmar
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
+
+            {user.role === "CUSTOMER" ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  placeholder="ID da barbearia"
+                  value={selectedBarbershopId}
+                  list={barbershopDatalistId}
+                  onChange={handleBarbershopInputChange}
+                  disabled={isCurrentRowBusy}
+                  className="w-full md:max-w-72"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={isCurrentRowBusy}
+                  onClick={handlePromoteToOwnerClick}
+                >
+                  Tornar OWNER
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </TableCell>
+      </TableRow>
+    );
+  },
+);
+
+OwnerUserRow.displayName = "OwnerUserRow";
+
 const OwnersManagementTable = ({
   users,
   barbershopOptions,
@@ -118,134 +307,141 @@ const OwnersManagementTable = ({
     isDisablingBarbershopAccess ||
     isEnablingBarbershopAccess;
 
-  const handleUpdateRole = async (
-    userId: string,
-    role: "CUSTOMER" | "ADMIN",
-  ) => {
-    setCurrentMutationUserId(userId);
+  const handleUpdateRole = useCallback(
+    async (userId: string, role: UpdatableRole) => {
+      setCurrentMutationUserId(userId);
 
-    const result = await executeUpdateUserRole({
-      userId,
-      role,
-    });
+      const result = await executeUpdateUserRole({
+        userId,
+        role,
+      });
 
-    const validationError = getValidationErrorMessage(result.validationErrors);
+      const validationError = getValidationErrorMessage(result.validationErrors);
 
-    if (validationError) {
-      toast.error(validationError);
+      if (validationError) {
+        toast.error(validationError);
+        setCurrentMutationUserId(null);
+        return;
+      }
+
+      if (result.serverError || !result.data) {
+        toast.error("Falha ao atualizar papel do usuario.");
+        setCurrentMutationUserId(null);
+        return;
+      }
+
+      toast.success("Papel do usuario atualizado.");
       setCurrentMutationUserId(null);
-      return;
-    }
+      router.refresh();
+    },
+    [executeUpdateUserRole, router],
+  );
 
-    if (result.serverError || !result.data) {
-      toast.error("Falha ao atualizar papel do usuario.");
+  const handlePromoteToOwner = useCallback(
+    async (userId: string) => {
+      const selectedBarbershopId = selectedBarbershopByUserId[userId]?.trim();
+
+      if (!selectedBarbershopId) {
+        toast.error("Informe a barbearia para promover o usuario a owner.");
+        return;
+      }
+
+      setCurrentMutationUserId(userId);
+
+      const result = await executePromoteToOwner({
+        userId,
+        barbershopId: selectedBarbershopId,
+        allowTransfer: true,
+      });
+
+      const validationError = getValidationErrorMessage(result.validationErrors);
+
+      if (validationError) {
+        toast.error(validationError);
+        setCurrentMutationUserId(null);
+        return;
+      }
+
+      if (result.serverError || !result.data) {
+        toast.error("Falha ao promover usuario para owner.");
+        setCurrentMutationUserId(null);
+        return;
+      }
+
+      toast.success("Usuario promovido para owner com sucesso.");
       setCurrentMutationUserId(null);
-      return;
-    }
+      router.refresh();
+    },
+    [executePromoteToOwner, router, selectedBarbershopByUserId],
+  );
 
-    toast.success("Papel do usuario atualizado.");
-    setCurrentMutationUserId(null);
-    router.refresh();
-  };
+  const handleDisableBarbershopAccess = useCallback(
+    async ({ userId, barbershopId }: BarbershopAccessParams) => {
+      setCurrentMutationUserId(userId);
 
-  const handlePromoteToOwner = async (userId: string) => {
-    const selectedBarbershopId = selectedBarbershopByUserId[userId]?.trim();
+      const result = await executeDisableBarbershopAccess({
+        barbershopId,
+      });
 
-    if (!selectedBarbershopId) {
-      toast.error("Informe a barbearia para promover o usuario a owner.");
-      return;
-    }
+      const validationError = getValidationErrorMessage(result.validationErrors);
 
-    setCurrentMutationUserId(userId);
+      if (validationError) {
+        toast.error(validationError);
+        setCurrentMutationUserId(null);
+        return;
+      }
 
-    const result = await executePromoteToOwner({
-      userId,
-      barbershopId: selectedBarbershopId,
-      allowTransfer: true,
-    });
+      if (result.serverError || !result.data) {
+        toast.error("Falha ao desabilitar acesso da barbearia.");
+        setCurrentMutationUserId(null);
+        return;
+      }
 
-    const validationError = getValidationErrorMessage(result.validationErrors);
-
-    if (validationError) {
-      toast.error(validationError);
+      toast.success("Acesso da barbearia desabilitado.");
       setCurrentMutationUserId(null);
-      return;
-    }
+      router.refresh();
+    },
+    [executeDisableBarbershopAccess, router],
+  );
 
-    if (result.serverError || !result.data) {
-      toast.error("Falha ao promover usuario para owner.");
+  const handleEnableBarbershopAccess = useCallback(
+    async ({ userId, barbershopId }: BarbershopAccessParams) => {
+      setCurrentMutationUserId(userId);
+
+      const result = await executeEnableBarbershopAccess({
+        barbershopId,
+      });
+
+      const validationError = getValidationErrorMessage(result.validationErrors);
+
+      if (validationError) {
+        toast.error(validationError);
+        setCurrentMutationUserId(null);
+        return;
+      }
+
+      if (result.serverError || !result.data) {
+        toast.error("Falha ao reativar acesso da barbearia.");
+        setCurrentMutationUserId(null);
+        return;
+      }
+
+      toast.success("Acesso da barbearia reativado.");
       setCurrentMutationUserId(null);
-      return;
-    }
+      router.refresh();
+    },
+    [executeEnableBarbershopAccess, router],
+  );
 
-    toast.success("Usuario promovido para owner com sucesso.");
-    setCurrentMutationUserId(null);
-    router.refresh();
-  };
-
-  const handleDisableBarbershopAccess = async ({
-    userId,
-    barbershopId,
-  }: {
-    userId: string;
-    barbershopId: string;
-  }) => {
-    setCurrentMutationUserId(userId);
-
-    const result = await executeDisableBarbershopAccess({
-      barbershopId,
-    });
-
-    const validationError = getValidationErrorMessage(result.validationErrors);
-
-    if (validationError) {
-      toast.error(validationError);
-      setCurrentMutationUserId(null);
-      return;
-    }
-
-    if (result.serverError || !result.data) {
-      toast.error("Falha ao desabilitar acesso da barbearia.");
-      setCurrentMutationUserId(null);
-      return;
-    }
-
-    toast.success("Acesso da barbearia desabilitado.");
-    setCurrentMutationUserId(null);
-    router.refresh();
-  };
-
-  const handleEnableBarbershopAccess = async ({
-    userId,
-    barbershopId,
-  }: {
-    userId: string;
-    barbershopId: string;
-  }) => {
-    setCurrentMutationUserId(userId);
-
-    const result = await executeEnableBarbershopAccess({
-      barbershopId,
-    });
-
-    const validationError = getValidationErrorMessage(result.validationErrors);
-
-    if (validationError) {
-      toast.error(validationError);
-      setCurrentMutationUserId(null);
-      return;
-    }
-
-    if (result.serverError || !result.data) {
-      toast.error("Falha ao reativar acesso da barbearia.");
-      setCurrentMutationUserId(null);
-      return;
-    }
-
-    toast.success("Acesso da barbearia reativado.");
-    setCurrentMutationUserId(null);
-    router.refresh();
-  };
+  const handleSelectedBarbershopChange = useCallback(
+    (userId: string, value: string) => {
+      setSelectedBarbershopByUserId((currentState) => ({
+        ...currentState,
+        [userId]: value,
+      }));
+    },
+    [],
+  );
 
   return (
     <>
@@ -270,147 +466,20 @@ const OwnersManagementTable = ({
         </TableHeader>
         <TableBody>
           {users.length > 0 ? (
-            users.map((user) => {
-              const ownedBarbershop = user.ownedBarbershop;
-              const isCurrentRowBusy = isBusy && currentMutationUserId === user.id;
-
-              return (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="font-medium">{user.name}</p>
-                      <p className="text-muted-foreground text-xs">{user.email}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{user.role}</TableCell>
-                  <TableCell>
-                    <Badge variant={user.isActive ? "secondary" : "destructive"}>
-                      {user.isActive ? "Ativo" : "Inativo"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{ownedBarbershop?.name ?? "Sem ownership"}</TableCell>
-                  <TableCell>
-                    {ownedBarbershop ? (
-                      <Badge
-                        variant={
-                          ownedBarbershop.isActive ? "secondary" : "destructive"
-                        }
-                      >
-                        {ownedBarbershop.isActive ? "Ativa" : "Inativa"}
-                      </Badge>
-                    ) : (
-                      "-"
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {user.role !== "ADMIN" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={isCurrentRowBusy}
-                            onClick={() => handleUpdateRole(user.id, "ADMIN")}
-                          >
-                            Tornar ADMIN
-                          </Button>
-                        ) : null}
-
-                        {user.role !== "CUSTOMER" ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={isCurrentRowBusy}
-                            onClick={() => handleUpdateRole(user.id, "CUSTOMER")}
-                          >
-                            Tornar CUSTOMER
-                          </Button>
-                        ) : null}
-                      </div>
-
-                      {ownedBarbershop ? (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              type="button"
-                              variant={
-                                ownedBarbershop.isActive ? "destructive" : "outline"
-                              }
-                              size="sm"
-                              disabled={isCurrentRowBusy}
-                            >
-                              {ownedBarbershop.isActive
-                                ? "Desabilitar acesso"
-                                : "Reativar acesso"}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                {ownedBarbershop.isActive
-                                  ? "Desabilitar acesso da barbearia?"
-                                  : "Reativar acesso da barbearia?"}
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                {ownedBarbershop.isActive
-                                  ? "Esta acao desabilita a barbearia, o owner e todos os clientes vinculados, alem de encerrar sessoes ativas."
-                                  : "Esta acao reativa a barbearia, o owner e todos os clientes vinculados."}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() =>
-                                  ownedBarbershop.isActive
-                                    ? handleDisableBarbershopAccess({
-                                        userId: user.id,
-                                        barbershopId: ownedBarbershop.id,
-                                      })
-                                    : handleEnableBarbershopAccess({
-                                        userId: user.id,
-                                        barbershopId: ownedBarbershop.id,
-                                      })
-                                }
-                              >
-                                Confirmar
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      ) : null}
-
-                      {user.role === "CUSTOMER" ? (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Input
-                            placeholder="ID da barbearia"
-                            value={selectedBarbershopByUserId[user.id] ?? ""}
-                            list="admin-barbershop-options"
-                            onChange={(event) =>
-                              setSelectedBarbershopByUserId((currentState) => ({
-                                ...currentState,
-                                [user.id]: event.target.value,
-                              }))
-                            }
-                            disabled={isCurrentRowBusy}
-                            className="w-full md:max-w-72"
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={isCurrentRowBusy}
-                            onClick={() => handlePromoteToOwner(user.id)}
-                          >
-                            Tornar OWNER
-                          </Button>
-                        </div>
-                      ) : null}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })
+            users.map((user) => (
+              <OwnerUserRow
+                key={user.id}
+                user={user}
+                isCurrentRowBusy={isBusy && currentMutationUserId === user.id}
+                selectedBarbershopId={selectedBarbershopByUserId[user.id] ?? ""}
+                barbershopDatalistId="admin-barbershop-options"
+                onUpdateRole={handleUpdateRole}
+                onPromoteToOwner={handlePromoteToOwner}
+                onDisableBarbershopAccess={handleDisableBarbershopAccess}
+                onEnableBarbershopAccess={handleEnableBarbershopAccess}
+                onSelectedBarbershopChange={handleSelectedBarbershopChange}
+              />
+            ))
           ) : (
             <TableRow>
               <TableCell colSpan={6} className="text-muted-foreground text-sm">

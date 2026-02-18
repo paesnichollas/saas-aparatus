@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/button";
 
 const INVALID_BARBERSHOP_CONTEXT_MESSAGE = "Contexto da barbearia inválido";
 
+const getMessagePartKey = (messageId: string, index: number) => {
+  return `${messageId}-part-${index}`;
+};
+
 const ChatPage = () => {
   const searchParams = useSearchParams();
   const hasBarbershopPublicSlugParam = searchParams.has("barbershopPublicSlug");
@@ -126,7 +130,9 @@ const ChatPage = () => {
                 <div className="prose prose-sm max-w-none text-sm leading-relaxed text-foreground dark:prose-invert">
                   {message.parts.map((part, index) =>
                     part.type === "text" ? (
-                      <Streamdown key={index}>{part.text}</Streamdown>
+                      <Streamdown key={getMessagePartKey(message.id, index)}>
+                        {part.text}
+                      </Streamdown>
                     ) : null,
                   )}
                 </div>
@@ -137,7 +143,9 @@ const ChatPage = () => {
                   <p className="text-sm">
                     {message.parts.map((part, index) =>
                       part.type === "text" ? (
-                        <span key={index}>{part.text}</span>
+                        <span key={getMessagePartKey(message.id, index)}>
+                          {part.text}
+                        </span>
                       ) : null,
                     )}
                   </p>

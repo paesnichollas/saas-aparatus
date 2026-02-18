@@ -45,7 +45,7 @@ import { ImageOff, Loader2, Pencil, Plus, Scissors, Timer, Trash2 } from "lucide
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, memo, useCallback, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -165,6 +165,71 @@ const getActionErrorMessage = (
   return null;
 };
 
+type ServiceRowProps = {
+  service: ServiceListItem;
+  onEdit: (service: ServiceListItem) => void;
+  onDelete: (service: ServiceListItem) => void;
+};
+
+const ServiceRow = memo(({ service, onEdit, onDelete }: ServiceRowProps) => {
+  const handleEditClick = useCallback(() => {
+    onEdit(service);
+  }, [onEdit, service]);
+
+  const handleDeleteClick = useCallback(() => {
+    onDelete(service);
+  }, [onDelete, service]);
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="space-y-1">
+          <p className="font-medium">{service.name}</p>
+          <p className="text-muted-foreground text-xs">
+            {service.description?.trim() || "Sem descrição."}
+          </p>
+          <Badge variant="secondary">
+            {service.imageUrl ? "Com imagem" : "Sem imagem"}
+          </Badge>
+        </div>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline">{formatCurrency(service.priceInCents)}</Badge>
+      </TableCell>
+      <TableCell>
+        <Badge variant="outline" className="gap-1">
+          <Timer className="size-3" />
+          {service.durationInMinutes} min
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleEditClick}
+          >
+            <Pencil className="size-3.5" />
+            Editar
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={handleDeleteClick}
+          >
+            <Trash2 className="size-3.5" />
+            Remover
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+});
+
+ServiceRow.displayName = "ServiceRow";
+
 const ServicesManagementCard = ({
   barbershopId,
   services,
@@ -202,24 +267,24 @@ const ServicesManagementCard = ({
   const isSavingService = isCreatingService || isUpdatingService;
   const isServiceFormBusy = isSavingService || isUploadingServiceImage;
 
-  const handleCreateClick = () => {
+  const handleCreateClick = useCallback(() => {
     setServiceInEdition(null);
     setServiceImageUrl(null);
     serviceForm.reset(DEFAULT_FORM_VALUES);
     setIsServiceFormOpen(true);
-  };
+  }, [serviceForm]);
 
-  const handleEditClick = (service: ServiceListItem) => {
+  const handleEditClick = useCallback((service: ServiceListItem) => {
     setServiceInEdition(service);
     setServiceImageUrl(service.imageUrl);
     serviceForm.reset(toFormValues(service));
     setIsServiceFormOpen(true);
-  };
+  }, [serviceForm]);
 
-  const handleDeleteClick = (service: ServiceListItem) => {
+  const handleDeleteClick = useCallback((service: ServiceListItem) => {
     setServiceToDelete(service);
     setIsDeleteDialogOpen(true);
-  };
+  }, []);
 
   const handleServiceFormOpenChange = (open: boolean) => {
     if (!open && isServiceFormBusy) {
@@ -433,52 +498,12 @@ const ServicesManagementCard = ({
               </TableHeader>
               <TableBody>
                 {serviceList.map((service) => (
-                  <TableRow key={service.id}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <p className="font-medium">{service.name}</p>
-                        <p className="text-muted-foreground text-xs">
-                          {service.description?.trim() || "Sem descrição."}
-                        </p>
-                        <Badge variant="secondary">
-                          {service.imageUrl ? "Com imagem" : "Sem imagem"}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {formatCurrency(service.priceInCents)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="gap-1">
-                        <Timer className="size-3" />
-                        {service.durationInMinutes} min
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => handleEditClick(service)}
-                        >
-                          <Pencil className="size-3.5" />
-                          Editar
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => handleDeleteClick(service)}
-                        >
-                          <Trash2 className="size-3.5" />
-                          Remover
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                  <ServiceRow
+                    key={service.id}
+                    service={service}
+                    onEdit={handleEditClick}
+                    onDelete={handleDeleteClick}
+                  />
                 ))}
               </TableBody>
             </Table>
@@ -637,6 +662,7 @@ const ServicesManagementCard = ({
                       alt={watchedServiceName?.trim() || "Preview do serviço"}
                       fill
                       className="object-cover"
+                      sizes="(max-width: 48rem) 100vw, 36rem"
                     />
                   ) : (
                     <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">

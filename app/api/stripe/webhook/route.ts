@@ -1,8 +1,16 @@
 import { prisma } from "@/lib/prisma";
+import { revalidateBookingSurfaces } from "@/lib/cache-invalidation";
+import {
+  cancelPendingBookingNotificationJobs,
+  scheduleBookingNotificationJobs,
+} from "@/lib/notifications/notification-jobs";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+
 const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2026-01-28.clover";
+
+export const runtime = "nodejs";
 
 const resolveChargeId = (
   paymentIntent: Stripe.PaymentIntent | string | null,
@@ -106,6 +114,9 @@ const confirmCompletedCheckoutSession = async (
     },
   });
 
+  await scheduleBookingNotificationJobs(existingBooking.id);
+  revalidateBookingSurfaces();
+
   console.info("[stripeWebhook] Checkout session reconciled as paid.", {
     eventId,
     sessionId: session.id,
@@ -159,6 +170,9 @@ const failCheckoutSessionBooking = async (
       paymentConfirmedAt: null,
     },
   });
+
+  await cancelPendingBookingNotificationJobs(existingBooking.id, "payment_failed");
+  revalidateBookingSurfaces();
 
   console.info("[stripeWebhook] Checkout session marked as failed.", {
     eventId,

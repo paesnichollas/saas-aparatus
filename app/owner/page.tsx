@@ -120,6 +120,7 @@ const OwnerPage = async () => {
                 alt={barbershop.name}
                 fill
                 className="object-cover"
+                sizes="(max-width: 48rem) 100vw, 72rem"
               />
             </div>
             <div className="space-y-2">

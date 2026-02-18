@@ -106,7 +106,7 @@ const ExclusiveBarbershopLanding = ({
             fill
             priority
             className="object-cover"
-            sizes="100vw"
+            sizes="(max-width: 48rem) 100vw, 80rem"
           />
           <div className="absolute inset-0 bg-gradient-to-t to-transparent pointer-events-none" />
         </div>

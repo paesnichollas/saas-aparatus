@@ -4,8 +4,9 @@ import { z } from "zod";
 import { protectedActionClient } from "@/lib/action-client";
 import { returnValidationErrors } from "next-safe-action";
 import { prisma } from "@/lib/prisma";
+import { cancelPendingBookingNotificationJobs } from "@/lib/notifications/notification-jobs";
 import { isFuture } from "date-fns";
-import { revalidatePath } from "next/cache";
+import { revalidateBookingSurfaces } from "@/lib/cache-invalidation";
 import Stripe from "stripe";
 
 const inputSchema = z.object({
@@ -71,7 +72,10 @@ export const cancelBooking = protectedActionClient
         cancelledAt: new Date(),
       },
     });
-    revalidatePath("/");
-    revalidatePath("/bookings");
-    return cancelledBooking;
+    
+      await cancelPendingBookingNotificationJobs(bookingId, "booking_canceled");
+      revalidateBookingSurfaces();
+
+      return cancelledBooking;
+
   });

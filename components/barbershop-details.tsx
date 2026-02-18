@@ -29,6 +29,7 @@ const BarbershopDetails = ({
           alt={barbershop.name}
           fill
           className="object-cover"
+          sizes="(max-width: 48rem) 100vw, 64rem"
         />
         {showBackButton ? <BackButton /> : null}
       </div>
@@ -42,6 +43,7 @@ const BarbershopDetails = ({
                 alt={barbershop.name}
                 fill
                 className="rounded-full object-cover"
+                sizes="1.875rem"
               />
             </div>
             <h1 className="text-xl font-bold">{barbershop.name}</h1>

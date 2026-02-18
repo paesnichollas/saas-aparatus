@@ -1,6 +1,9 @@
 "use server";
 
 import { protectedActionClient } from "@/lib/action-client";
+import { revalidateBookingSurfaces } from "@/lib/cache-invalidation";
+import { scheduleBookingNotificationJobs } from "@/lib/notifications/notification-jobs";
+
 import {
   BOOKING_SLOT_BUFFER_MINUTES,
   getBookingDayBounds,
@@ -192,5 +195,8 @@ export const createBooking = protectedActionClient
       },
     });
 
-    return booking;
+      await scheduleBookingNotificationJobs(booking.id);
+      revalidateBookingSurfaces();
+
+      return booking;
   });

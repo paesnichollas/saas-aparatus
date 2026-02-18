@@ -2,6 +2,7 @@
 
 import { ensureBarbershopPublicSlug } from "@/data/barbershops";
 import { protectedActionClient } from "@/lib/action-client";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
@@ -120,13 +121,15 @@ export const updateBarbershopBranding = protectedActionClient
         },
       });
 
-      await ensureBarbershopPublicSlug(updatedBarbershop.id);
+      const publicSlug = await ensureBarbershopPublicSlug(updatedBarbershop.id);
 
-      revalidatePath("/");
-      revalidatePath("/barbershops");
       revalidatePath("/owner");
-      revalidatePath(`/b/${barbershop.slug}`);
-      revalidatePath(`/b/${updatedBarbershop.slug}`);
+      revalidatePublicBarbershopCache({
+        barbershopId: updatedBarbershop.id,
+        slug: updatedBarbershop.slug,
+        previousSlug: barbershop.slug,
+        publicSlug,
+      });
 
       return {
         success: true,
