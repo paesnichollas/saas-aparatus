@@ -30,6 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import ImageUploader from "@/components/ui/image-uploader";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -41,11 +42,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImageOff, Loader2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
-import Image from "next/image";
+import { Loader2, Pencil, Plus, Scissors, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { ChangeEvent, memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -260,49 +260,6 @@ const BarbersManagementCard = ({
     }
   };
 
-  const handleBarberImageUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-
-    if (!selectedFile) {
-      return;
-    }
-
-    setIsUploadingBarberImage(true);
-
-    const uploadFormData = new FormData();
-    uploadFormData.append("barbershopId", barbershopId);
-    uploadFormData.append("file", selectedFile);
-
-    try {
-      const uploadResponse = await fetch("/api/uploads/services", {
-        method: "POST",
-        body: uploadFormData,
-      });
-
-      const uploadResponseData = (await uploadResponse.json()) as
-        | {
-            url?: string;
-            error?: string;
-          }
-        | undefined;
-
-      if (!uploadResponse.ok || !uploadResponseData?.url) {
-        toast.error(
-          uploadResponseData?.error ?? "Erro ao enviar imagem. Tente novamente.",
-        );
-        return;
-      }
-
-      setBarberImageUrl(uploadResponseData.url);
-      toast.success("Imagem enviada com sucesso.");
-    } catch {
-      toast.error("Erro ao enviar imagem. Tente novamente.");
-    } finally {
-      setIsUploadingBarberImage(false);
-      event.target.value = "";
-    }
-  };
-
   const handleBarberSubmit = async (values: BarberFormValues) => {
     if (isUploadingBarberImage) {
       toast.error("Aguarde o envio da imagem finalizar.");
@@ -482,57 +439,17 @@ const BarbersManagementCard = ({
                 )}
               />
 
-              <div className="space-y-2">
-                <label htmlFor="barber-image-upload" className="text-sm font-medium">
-                  Imagem (opcional)
-                </label>
-                <Input
-                  id="barber-image-upload"
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={handleBarberImageUpload}
-                  disabled={isBarberFormBusy}
-                />
-                <p className="text-muted-foreground text-xs">
-                  A imagem e enviada e convertida em URL no backend.
-                </p>
-                {barberImageUrl ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setBarberImageUrl(null)}
-                    disabled={isBarberFormBusy}
-                  >
-                    Remover imagem
-                  </Button>
-                ) : null}
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Preview</p>
-                <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-lg border">
-                  {barberImageUrl ? (
-                    <Image
-                      src={barberImageUrl}
-                      alt={watchedBarberName?.trim() || "Preview do barbeiro"}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 48rem) 100vw, 36rem"
-                    />
-                  ) : (
-                    <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
-                      <ImageOff className="size-4" />
-                      Sem imagem para preview.
-                    </div>
-                  )}
-                  {isUploadingBarberImage ? (
-                    <div className="bg-background/80 absolute inset-0 flex items-center justify-center gap-2 text-sm">
-                      <Loader2 className="size-4 animate-spin" />
-                      Enviando imagem...
-                    </div>
-                  ) : null}
-                </div>
-              </div>
+              <ImageUploader
+                value={barberImageUrl}
+                onChange={setBarberImageUrl}
+                label="Imagem (opcional)"
+                previewAlt={watchedBarberName?.trim() || "Preview do barbeiro"}
+                barbershopId={barbershopId}
+                disabled={isSavingBarber}
+                helperText="A imagem e enviada via UploadThing e salva como URL."
+                emptyText="Sem imagem para preview."
+                onUploadingChange={setIsUploadingBarberImage}
+              />
 
               <DialogFooter>
                 <DialogClose asChild>

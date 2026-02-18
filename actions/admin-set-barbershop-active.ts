@@ -2,6 +2,7 @@
 
 import { adminSetBarbershopActive } from "@/data/admin/barbershops";
 import { adminActionClient } from "@/lib/action-client";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -25,6 +26,11 @@ export const adminSetBarbershopActiveAction = adminActionClient
       revalidatePath(`/b/${updatedBarbershop.slug}`);
       revalidatePath(`/barbershops/${updatedBarbershop.id}`);
       revalidatePath(`/exclusive/${updatedBarbershop.id}`);
+      revalidatePublicBarbershopCache({
+        barbershopId: updatedBarbershop.id,
+        slug: updatedBarbershop.slug,
+        publicSlug: updatedBarbershop.publicSlug,
+      });
 
       return updatedBarbershop;
     } catch (error) {

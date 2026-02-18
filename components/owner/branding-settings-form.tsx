@@ -9,13 +9,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import ImageUploader from "@/components/ui/image-uploader";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy, ImageOff, Loader2 } from "lucide-react";
-import Image from "next/image";
+import { Copy } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 type BrandingSettingsFormProps = {
@@ -24,7 +24,7 @@ type BrandingSettingsFormProps = {
   description: string;
   address: string;
   phones: string[];
-  imageUrl: string;
+  imageUrl: string | null;
   slug: string;
   shareLink: string;
 };
@@ -78,52 +78,6 @@ const BrandingSettingsForm = ({
   const handleCopyShareLink = async () => {
     await navigator.clipboard.writeText(shareLink);
     toast.success("Link copiado com sucesso.");
-  };
-
-  const handleBackgroundImageUpload = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const selectedFile = event.target.files?.[0];
-
-    if (!selectedFile) {
-      return;
-    }
-
-    setIsUploadingBackgroundImage(true);
-
-    const uploadFormData = new FormData();
-    uploadFormData.append("barbershopId", barbershopId);
-    uploadFormData.append("file", selectedFile);
-
-    try {
-      const uploadResponse = await fetch("/api/uploads/barbershops", {
-        method: "POST",
-        body: uploadFormData,
-      });
-
-      const uploadResponseData = (await uploadResponse.json()) as
-        | {
-            url?: string;
-            error?: string;
-          }
-        | undefined;
-
-      if (!uploadResponse.ok || !uploadResponseData?.url) {
-        toast.error(
-          uploadResponseData?.error ??
-            "Erro ao enviar imagem de fundo. Tente novamente.",
-        );
-        return;
-      }
-
-      setBackgroundImageUrl(uploadResponseData.url);
-      toast.success("Imagem de fundo enviada com sucesso.");
-    } catch {
-      toast.error("Erro ao enviar imagem de fundo. Tente novamente.");
-    } finally {
-      setIsUploadingBackgroundImage(false);
-      event.target.value = "";
-    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -247,60 +201,17 @@ const BrandingSettingsForm = ({
             </p>
           </div>
 
-          <div className="space-y-2">
-            <label
-              htmlFor="barbershop-background-upload"
-              className="text-sm font-medium"
-            >
-              Banner da barbearia
-            </label>
-            <Input
-              id="barbershop-background-upload"
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={handleBackgroundImageUpload}
-              disabled={isFormBusy}
-            />
-            <p className="text-muted-foreground text-xs">
-              O banner e enviado e convertido em URL no backend.
-            </p>
-            {backgroundImageUrl ? (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setBackgroundImageUrl(null)}
-                disabled={isFormBusy}
-              >
-                Remover banner
-              </Button>
-            ) : null}
-          </div>
-
-          <div className="space-y-2">
-            <p className="text-sm font-medium">Preview do banner</p>
-            <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-lg border">
-              {backgroundImageUrl ? (
-                <Image
-                  src={backgroundImageUrl}
-                  alt={nameInput.trim() || "Preview do banner"}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 48rem) 100vw, 36rem"
-                />
-              ) : (
-                <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
-                  <ImageOff className="size-4" />
-                  Sem banner para preview.
-                </div>
-              )}
-              {isUploadingBackgroundImage ? (
-                <div className="bg-background/80 absolute inset-0 flex items-center justify-center gap-2 text-sm">
-                  <Loader2 className="size-4 animate-spin" />
-                  Enviando banner...
-                </div>
-              ) : null}
-            </div>
-          </div>
+          <ImageUploader
+            value={backgroundImageUrl}
+            onChange={setBackgroundImageUrl}
+            label="Banner da barbearia"
+            previewAlt={nameInput.trim() || "Preview do banner"}
+            barbershopId={barbershopId}
+            disabled={isPending}
+            helperText="O banner e enviado via UploadThing e salvo como URL."
+            emptyText="Sem banner para preview."
+            onUploadingChange={setIsUploadingBackgroundImage}
+          />
 
           <div className="space-y-2">
             <label htmlFor="barbershop-slug" className="text-sm font-medium">

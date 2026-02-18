@@ -29,6 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import ImageUploader from "@/components/ui/image-uploader";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -41,12 +42,11 @@ import {
 } from "@/components/ui/table";
 import { formatCurrency } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ImageOff, Loader2, Pencil, Plus, Scissors, Timer, Trash2 } from "lucide-react";
-import Image from "next/image";
+import { Loader2, Pencil, Plus, Scissors, Timer, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
-import { ChangeEvent, memo, useCallback, useMemo, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { memo, useCallback, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -65,18 +65,18 @@ type ServicesManagementCardProps = {
 };
 
 const serviceFormSchema = z.object({
-  name: z.string().trim().min(2, "Informe o nome do serviço.").max(80),
+  name: z.string().trim().min(2, "Informe o nome do servico.").max(80),
   description: z.string().trim().max(500).optional(),
   priceInReais: z
     .string()
     .trim()
-    .min(1, "Informe o valor do serviço.")
-    .max(20, "Informe um valor válido."),
+    .min(1, "Informe o valor do servico.")
+    .max(20, "Informe um valor valido."),
   durationInMinutes: z
     .number()
     .int("Informe um valor inteiro.")
-    .min(5, "A duração mínima é de 5 minutos.")
-    .max(240, "A duração máxima é de 240 minutos."),
+    .min(5, "A duracao minima e de 5 minutos.")
+    .max(240, "A duracao maxima e de 240 minutos."),
 });
 
 type ServiceFormValues = z.infer<typeof serviceFormSchema>;
@@ -186,7 +186,7 @@ const ServiceRow = memo(({ service, onEdit, onDelete }: ServiceRowProps) => {
         <div className="space-y-1">
           <p className="font-medium">{service.name}</p>
           <p className="text-muted-foreground text-xs">
-            {service.description?.trim() || "Sem descrição."}
+            {service.description?.trim() || "Sem descricao."}
           </p>
           <Badge variant="secondary">
             {service.imageUrl ? "Com imagem" : "Sem imagem"}
@@ -252,11 +252,6 @@ const ServicesManagementCard = ({
     defaultValues: DEFAULT_FORM_VALUES,
   });
 
-  const watchedServiceName = useWatch({
-    control: serviceForm.control,
-    name: "name",
-  });
-
   const { executeAsync: executeCreateService, isPending: isCreatingService } =
     useAction(createService);
   const { executeAsync: executeUpdateService, isPending: isUpdatingService } =
@@ -274,12 +269,15 @@ const ServicesManagementCard = ({
     setIsServiceFormOpen(true);
   }, [serviceForm]);
 
-  const handleEditClick = useCallback((service: ServiceListItem) => {
-    setServiceInEdition(service);
-    setServiceImageUrl(service.imageUrl);
-    serviceForm.reset(toFormValues(service));
-    setIsServiceFormOpen(true);
-  }, [serviceForm]);
+  const handleEditClick = useCallback(
+    (service: ServiceListItem) => {
+      setServiceInEdition(service);
+      setServiceImageUrl(service.imageUrl);
+      serviceForm.reset(toFormValues(service));
+      setIsServiceFormOpen(true);
+    },
+    [serviceForm],
+  );
 
   const handleDeleteClick = useCallback((service: ServiceListItem) => {
     setServiceToDelete(service);
@@ -312,51 +310,6 @@ const ServicesManagementCard = ({
     }
   };
 
-  const handleServiceImageUpload = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const selectedFile = event.target.files?.[0];
-
-    if (!selectedFile) {
-      return;
-    }
-
-    setIsUploadingServiceImage(true);
-
-    const uploadFormData = new FormData();
-    uploadFormData.append("barbershopId", barbershopId);
-    uploadFormData.append("file", selectedFile);
-
-    try {
-      const uploadResponse = await fetch("/api/uploads/services", {
-        method: "POST",
-        body: uploadFormData,
-      });
-
-      const uploadResponseData = (await uploadResponse.json()) as
-        | {
-            url?: string;
-            error?: string;
-          }
-        | undefined;
-
-      if (!uploadResponse.ok || !uploadResponseData?.url) {
-        toast.error(
-          uploadResponseData?.error ?? "Erro ao enviar imagem. Tente novamente.",
-        );
-        return;
-      }
-
-      setServiceImageUrl(uploadResponseData.url);
-      toast.success("Imagem enviada com sucesso.");
-    } catch {
-      toast.error("Erro ao enviar imagem. Tente novamente.");
-    } finally {
-      setIsUploadingServiceImage(false);
-      event.target.value = "";
-    }
-  };
-
   const handleServiceSubmit = async (values: ServiceFormValues) => {
     if (isUploadingServiceImage) {
       toast.error("Aguarde o envio da imagem finalizar.");
@@ -367,9 +320,9 @@ const ServicesManagementCard = ({
 
     if (priceInCents === null) {
       serviceForm.setError("priceInReais", {
-        message: "Informe um valor válido. Exemplo: 29,90.",
+        message: "Informe um valor valido. Exemplo: 29,90.",
       });
-      toast.error("Informe um valor válido para o serviço.");
+      toast.error("Informe um valor valido para o servico.");
       return;
     }
 
@@ -386,7 +339,7 @@ const ServicesManagementCard = ({
       const updateErrorMessage = getActionErrorMessage(
         updateResult.validationErrors,
         updateResult.serverError,
-        "Erro ao atualizar serviço. Tente novamente.",
+        "Erro ao atualizar servico. Tente novamente.",
       );
 
       if (updateErrorMessage) {
@@ -395,7 +348,7 @@ const ServicesManagementCard = ({
       }
 
       if (!updateResult.data) {
-        toast.error("Erro ao atualizar serviço. Tente novamente.");
+        toast.error("Erro ao atualizar servico. Tente novamente.");
         return;
       }
 
@@ -403,7 +356,7 @@ const ServicesManagementCard = ({
       setServiceInEdition(null);
       setServiceImageUrl(null);
       serviceForm.reset(DEFAULT_FORM_VALUES);
-      toast.success("Serviço atualizado com sucesso.");
+      toast.success("Servico atualizado com sucesso.");
       router.refresh();
       return;
     }
@@ -420,7 +373,7 @@ const ServicesManagementCard = ({
     const createErrorMessage = getActionErrorMessage(
       createResult.validationErrors,
       createResult.serverError,
-      "Erro ao criar serviço. Tente novamente.",
+      "Erro ao criar servico. Tente novamente.",
     );
 
     if (createErrorMessage) {
@@ -429,7 +382,7 @@ const ServicesManagementCard = ({
     }
 
     if (!createResult.data) {
-      toast.error("Erro ao criar serviço. Tente novamente.");
+      toast.error("Erro ao criar servico. Tente novamente.");
       return;
     }
 
@@ -437,7 +390,7 @@ const ServicesManagementCard = ({
     setServiceInEdition(null);
     setServiceImageUrl(null);
     serviceForm.reset(DEFAULT_FORM_VALUES);
-    toast.success("Serviço criado com sucesso.");
+    toast.success("Servico criado com sucesso.");
     router.refresh();
   };
 
@@ -453,7 +406,7 @@ const ServicesManagementCard = ({
     const deleteErrorMessage = getActionErrorMessage(
       deleteResult.validationErrors,
       deleteResult.serverError,
-      "Erro ao remover serviço. Tente novamente.",
+      "Erro ao remover servico. Tente novamente.",
     );
 
     if (deleteErrorMessage) {
@@ -463,7 +416,7 @@ const ServicesManagementCard = ({
 
     setIsDeleteDialogOpen(false);
     setServiceToDelete(null);
-    toast.success("Serviço removido com sucesso.");
+    toast.success("Servico removido com sucesso.");
     router.refresh();
   };
 
@@ -473,14 +426,14 @@ const ServicesManagementCard = ({
         <CardHeader className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
-              <CardTitle>Gerenciar serviços</CardTitle>
+              <CardTitle>Gerenciar servicos</CardTitle>
               <CardDescription>
-                Crie, edite e remova serviços da sua barbearia.
+                Crie, edite e remova servicos da sua barbearia.
               </CardDescription>
             </div>
             <Button onClick={handleCreateClick} className="gap-2">
               <Plus className="size-4" />
-              Novo serviço
+              Novo servico
             </Button>
           </div>
           <Separator />
@@ -490,10 +443,10 @@ const ServicesManagementCard = ({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Serviço</TableHead>
-                  <TableHead>Preço</TableHead>
-                  <TableHead>Duração</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
+                  <TableHead>Servico</TableHead>
+                  <TableHead>Preco</TableHead>
+                  <TableHead>Duracao</TableHead>
+                  <TableHead className="text-right">Acoes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -511,11 +464,10 @@ const ServicesManagementCard = ({
             <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center">
               <Badge variant="secondary" className="gap-1">
                 <Scissors className="size-3" />
-                Nenhum serviço cadastrado
+                Nenhum servico cadastrado
               </Badge>
               <p className="text-muted-foreground text-sm">
-                Clique em &quot;Novo serviço&quot; para cadastrar o primeiro
-                serviço.
+                Clique em &quot;Novo servico&quot; para cadastrar o primeiro servico.
               </p>
             </div>
           )}
@@ -526,10 +478,10 @@ const ServicesManagementCard = ({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {serviceInEdition ? "Editar serviço" : "Novo serviço"}
+              {serviceInEdition ? "Editar servico" : "Novo servico"}
             </DialogTitle>
             <DialogDescription>
-              Preencha os dados do serviço e salve para atualizar sua listagem.
+              Preencha os dados do servico e salve para atualizar sua listagem.
             </DialogDescription>
           </DialogHeader>
           <Separator />
@@ -562,10 +514,10 @@ const ServicesManagementCard = ({
                   name="description"
                   render={({ field }) => (
                     <FormItem className="md:col-span-2">
-                      <FormLabel>Descrição (opcional)</FormLabel>
+                      <FormLabel>Descricao (opcional)</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Descrição curta do serviço"
+                          placeholder="Descricao curta do servico"
                           {...field}
                           value={field.value ?? ""}
                           disabled={isServiceFormBusy}
@@ -576,33 +528,17 @@ const ServicesManagementCard = ({
                   )}
                 />
 
-                <div className="space-y-2 md:col-span-2">
-                  <label
-                    htmlFor="service-image-upload"
-                    className="text-sm font-medium"
-                  >
-                    Imagem (opcional)
-                  </label>
-                  <Input
-                    id="service-image-upload"
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={handleServiceImageUpload}
-                    disabled={isServiceFormBusy}
+                <div className="md:col-span-2">
+                  <ImageUploader
+                    value={serviceImageUrl}
+                    onChange={setServiceImageUrl}
+                    label="Imagem (opcional)"
+                    barbershopId={barbershopId}
+                    disabled={isSavingService}
+                    helperText="A imagem e enviada via UploadThing e salva como URL."
+                    emptyText="Sem imagem para preview."
+                    onUploadingChange={setIsUploadingServiceImage}
                   />
-                  <p className="text-muted-foreground text-xs">
-                    A imagem é enviada e convertida em URL no backend.
-                  </p>
-                  {serviceImageUrl ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setServiceImageUrl(null)}
-                      disabled={isServiceFormBusy}
-                    >
-                      Remover imagem
-                    </Button>
-                  ) : null}
                 </div>
 
                 <FormField
@@ -631,7 +567,7 @@ const ServicesManagementCard = ({
                   name="durationInMinutes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Duração (minutos)</FormLabel>
+                      <FormLabel>Duracao (minutos)</FormLabel>
                       <FormControl>
                         <Input
                           type="number"
@@ -653,32 +589,6 @@ const ServicesManagementCard = ({
 
               <Separator />
 
-              <div className="space-y-2">
-                <p className="text-sm font-medium">Preview da imagem</p>
-                <div className="bg-muted relative aspect-video w-full overflow-hidden rounded-lg border">
-                  {serviceImageUrl ? (
-                    <Image
-                      src={serviceImageUrl}
-                      alt={watchedServiceName?.trim() || "Preview do serviço"}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 48rem) 100vw, 36rem"
-                    />
-                  ) : (
-                    <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
-                      <ImageOff className="size-4" />
-                      Sem imagem para preview.
-                    </div>
-                  )}
-                  {isUploadingServiceImage ? (
-                    <div className="bg-background/80 absolute inset-0 flex items-center justify-center gap-2 text-sm">
-                      <Loader2 className="size-4 animate-spin" />
-                      Enviando imagem...
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
               <DialogFooter>
                 <DialogClose asChild>
                   <Button
@@ -690,11 +600,16 @@ const ServicesManagementCard = ({
                   </Button>
                 </DialogClose>
                 <Button type="submit" disabled={isServiceFormBusy}>
-                  {isSavingService
-                    ? "Salvando..."
-                    : serviceInEdition
-                      ? "Salvar alterações"
-                      : "Criar serviço"}
+                  {isSavingService ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : serviceInEdition ? (
+                    "Salvar alteracoes"
+                  ) : (
+                    "Criar servico"
+                  )}
                 </Button>
               </DialogFooter>
             </form>
@@ -705,11 +620,11 @@ const ServicesManagementCard = ({
       <Dialog open={isDeleteDialogOpen} onOpenChange={handleDeleteDialogOpenChange}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Remover serviço</DialogTitle>
+            <DialogTitle>Remover servico</DialogTitle>
             <DialogDescription>
               {serviceToDelete
                 ? `Tem certeza que deseja remover "${serviceToDelete.name}"?`
-                : "Confirme para remover este serviço."}
+                : "Confirme para remover este servico."}
             </DialogDescription>
           </DialogHeader>
           <Separator />

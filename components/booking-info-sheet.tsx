@@ -28,6 +28,7 @@ import { Smartphone, Loader2 } from "lucide-react";
 import { cancelBooking } from "@/actions/cancel-booking";
 import { useAction } from "next-safe-action/hooks";
 import { toast } from "sonner";
+import { resolveBarbershopImageUrl } from "@/lib/image-fallback";
 
 interface BookingInfoSheetProps {
   booking: BookingWithRelations;
@@ -36,6 +37,7 @@ interface BookingInfoSheetProps {
 
 const BookingInfoSheet = ({ booking, onClose }: BookingInfoSheetProps) => {
   const bookingStartAt = getBookingStartDate(booking);
+  const barbershopImageUrl = resolveBarbershopImageUrl(booking.barbershop.imageUrl);
   const status = getBookingStatus(bookingStartAt, booking.cancelledAt);
   const { executeAsync: executeCancelBooking, isPending: isCancelling } =
     useAction(cancelBooking);
@@ -94,7 +96,7 @@ const BookingInfoSheet = ({ booking, onClose }: BookingInfoSheetProps) => {
           />
           <div className="bg-background absolute right-5 bottom-5 left-5 flex items-center gap-3 rounded-lg px-5 py-3">
             <Avatar className="size-12">
-              <AvatarImage src={booking.barbershop.imageUrl} />
+              <AvatarImage src={barbershopImageUrl} />
             </Avatar>
             <div className="flex flex-1 flex-col overflow-hidden">
               <p className="font-bold">{booking.barbershop.name}</p>

@@ -44,7 +44,7 @@ export interface BarbershopListItem {
   id: string;
   name: string;
   address: string;
-  imageUrl: string;
+  imageUrl: string | null;
   slug: string;
   isExclusive: boolean;
 }

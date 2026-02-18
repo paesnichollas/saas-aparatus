@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import BarbershopAdminForm from "@/components/admin/barbershop-admin-form";
 import {
@@ -9,22 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { adminGetBarbershop } from "@/data/admin/barbershops";
 
-const AdminBarbershopDetailsPage = async ({
-  params,
-}: PageProps<"/admin/barbershops/[id]">) => {
-  const { id } = await params;
-  const barbershop = await adminGetBarbershop(id);
-
-  if (!barbershop) {
-    notFound();
-  }
-
+const AdminBarbershopCreatePage = () => {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-xl font-semibold">Detalhes da barbearia</h2>
+        <h2 className="text-xl font-semibold">Nova barbearia</h2>
         <Link
           href="/admin/barbershops"
           className="text-sm font-medium underline-offset-4 hover:underline"
@@ -35,17 +24,17 @@ const AdminBarbershopDetailsPage = async ({
 
       <Card>
         <CardHeader>
-          <CardTitle>{barbershop.name}</CardTitle>
-        <CardDescription>
-            Edite os campos principais da barbearia.
+          <CardTitle>Criar barbearia</CardTitle>
+          <CardDescription>
+            Preencha os dados principais para cadastrar uma nova barbearia.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <BarbershopAdminForm mode="edit" barbershop={barbershop} />
+          <BarbershopAdminForm mode="create" />
         </CardContent>
       </Card>
     </div>
   );
 };
 
-export default AdminBarbershopDetailsPage;
+export default AdminBarbershopCreatePage;

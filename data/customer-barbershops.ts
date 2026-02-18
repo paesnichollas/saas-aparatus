@@ -109,20 +109,44 @@ export const getPreferredBarbershopIdForUser = async (userId: string) => {
       role: true,
       barbershopId: true,
       currentBarbershopId: true,
+      barbershop: {
+        select: {
+          isActive: true,
+        },
+      },
     },
   });
 
   if (user?.role === "OWNER") {
+    if (!user.barbershopId || !user.barbershop?.isActive) {
+      return null;
+    }
+
     return user.barbershopId;
   }
 
   if (user?.currentBarbershopId) {
-    return user.currentBarbershopId;
+    const activeCurrentBarbershop = await prisma.barbershop.findFirst({
+      where: {
+        id: user.currentBarbershopId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (activeCurrentBarbershop) {
+      return activeCurrentBarbershop.id;
+    }
   }
 
   const latestLinkedBarbershop = await prisma.customerBarbershop.findFirst({
     where: {
       customerId: normalizedUserId,
+      barbershop: {
+        isActive: true,
+      },
     },
     select: {
       barbershopId: true,

@@ -23,6 +23,7 @@ import {
 import { getServicesByBarbershopId } from "@/data/services";
 import { SHOW_CHATBOT_ENTRYPOINTS } from "@/constants/feature-flags";
 import { getBookingStartDate } from "@/lib/booking-calculations";
+import { resolveBarbershopImageUrl } from "@/lib/image-fallback";
 import { requireOwnerOrAdmin } from "@/lib/rbac";
 import { BarChart3, MessageCircleMore, Phone } from "lucide-react";
 import { headers } from "next/headers";
@@ -74,6 +75,7 @@ const OwnerPage = async () => {
   }
 
   const services = await getServicesByBarbershopId(barbershop.id);
+  const barbershopImageUrl = resolveBarbershopImageUrl(barbershop.imageUrl);
   const shareLink = await getBarbershopShareLink(
     barbershop.id,
     getRequestOrigin(requestHeaders),
@@ -117,7 +119,7 @@ const OwnerPage = async () => {
           <CardContent className="space-y-4">
             <div className="relative aspect-video w-full overflow-hidden rounded-lg border">
               <Image
-                src={barbershop.imageUrl}
+                src={barbershopImageUrl}
                 alt={barbershop.name}
                 fill
                 className="object-cover"
@@ -175,7 +177,7 @@ const OwnerPage = async () => {
           description={barbershop.description}
           address={barbershop.address}
           phones={barbershop.phones}
-          imageUrl={barbershop.imageUrl}
+          imageUrl={barbershop.imageUrl ?? null}
           slug={barbershop.slug}
           shareLink={shareLink}
         />

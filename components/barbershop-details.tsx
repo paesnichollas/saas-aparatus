@@ -1,4 +1,5 @@
 import { Barber, Barbershop, BarbershopService } from "@/generated/prisma/client";
+import { resolveBarbershopImageUrl } from "@/lib/image-fallback";
 import { Smartphone } from "lucide-react";
 import Image from "next/image";
 import BackButton from "@/app/barbershops/[id]/_components/back-button";
@@ -21,11 +22,13 @@ const BarbershopDetails = ({
   barbershop,
   showBackButton = true,
 }: BarbershopDetailsProps) => {
+  const barbershopImageUrl = resolveBarbershopImageUrl(barbershop.imageUrl);
+
   return (
     <>
       <div className="relative h-[18.5625rem] w-full">
         <Image
-          src={barbershop.imageUrl}
+          src={barbershopImageUrl}
           alt={barbershop.name}
           fill
           className="object-cover"
@@ -39,7 +42,7 @@ const BarbershopDetails = ({
           <div className="flex items-center gap-1.5">
             <div className="relative size-[1.875rem] shrink-0">
               <Image
-                src={barbershop.imageUrl}
+                src={barbershopImageUrl}
                 alt={barbershop.name}
                 fill
                 className="rounded-full object-cover"
@@ -90,7 +93,7 @@ const BarbershopDetails = ({
               <ServiceItem
                 key={service.id}
                 service={service}
-                fallbackImageUrl={barbershop.imageUrl}
+                fallbackImageUrl={barbershopImageUrl}
               />
             ))}
           </div>

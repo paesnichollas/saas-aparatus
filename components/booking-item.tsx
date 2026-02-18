@@ -11,6 +11,7 @@ import { ptBR } from "date-fns/locale";
 import { getBookingStartDate } from "@/lib/booking-calculations";
 import { getBookingStatus } from "@/lib/booking-status";
 import { formatCurrency } from "@/lib/utils";
+import { resolveBarbershopImageUrl } from "@/lib/image-fallback";
 import BookingInfoSheet from "./booking-info-sheet";
 
 interface BookingItemProps {
@@ -20,6 +21,7 @@ interface BookingItemProps {
 const BookingItem = ({ booking }: BookingItemProps) => {
   const [sheetIsOpen, setSheetIsOpen] = useState(false);
   const bookingStartAt = getBookingStartDate(booking);
+  const barbershopImageUrl = resolveBarbershopImageUrl(booking.barbershop.imageUrl);
   const status = getBookingStatus(bookingStartAt, booking.cancelledAt);
   const bookingServiceNames =
     booking.services.length > 0
@@ -47,7 +49,7 @@ const BookingItem = ({ booking }: BookingItemProps) => {
               <p className="text-muted-foreground text-sm">{bookingTotalLabel}</p>
               <div className="flex items-center gap-2">
                 <Avatar className="h-6 w-6">
-                  <AvatarImage src={booking.barbershop.imageUrl} />
+                  <AvatarImage src={barbershopImageUrl} />
                 </Avatar>
                 <p className="text-sm font-medium">{booking.barbershop.name}</p>
               </div>

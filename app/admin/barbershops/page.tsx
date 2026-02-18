@@ -26,6 +26,7 @@ interface AdminBarbershopsPageProps {
     q?: string | string[];
     page?: string | string[];
     status?: string | string[];
+    exclusive?: string | string[];
   }>;
 }
 
@@ -49,12 +50,23 @@ const parsePageParam = (value: string | string[] | undefined) => {
 };
 
 const statusFilterValues = new Set(["ALL", "ACTIVE", "INACTIVE"]);
+const exclusiveFilterValues = new Set(["ALL", "EXCLUSIVE", "NON_EXCLUSIVE"]);
 
 const parseStatusFilter = (value: string | string[] | undefined) => {
   const normalizedValue = parseStringParam(value).toUpperCase();
 
   if (statusFilterValues.has(normalizedValue)) {
     return normalizedValue as "ALL" | "ACTIVE" | "INACTIVE";
+  }
+
+  return "ALL";
+};
+
+const parseExclusiveFilter = (value: string | string[] | undefined) => {
+  const normalizedValue = parseStringParam(value).toUpperCase();
+
+  if (exclusiveFilterValues.has(normalizedValue)) {
+    return normalizedValue as "ALL" | "EXCLUSIVE" | "NON_EXCLUSIVE";
   }
 
   return "ALL";
@@ -67,11 +79,13 @@ const AdminBarbershopsPage = async ({
   const search = parseStringParam(resolvedSearchParams.q);
   const page = parsePageParam(resolvedSearchParams.page);
   const status = parseStatusFilter(resolvedSearchParams.status);
+  const exclusive = parseExclusiveFilter(resolvedSearchParams.exclusive);
 
   const result = await adminListBarbershops({
     search,
     page,
     status,
+    exclusive,
   });
 
   const createPageHref = (nextPage: number) => {
@@ -85,6 +99,10 @@ const AdminBarbershopsPage = async ({
       params.set("status", status);
     }
 
+    if (exclusive !== "ALL") {
+      params.set("exclusive", exclusive);
+    }
+
     params.set("page", String(nextPage));
     return `/admin/barbershops?${params.toString()}`;
   };
@@ -93,10 +111,17 @@ const AdminBarbershopsPage = async ({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Barbearias</CardTitle>
-          <CardDescription>
-            Busque e gerencie dados principais das barbearias.
-          </CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="space-y-1">
+              <CardTitle>Barbearias</CardTitle>
+              <CardDescription>
+                Busque e gerencie dados principais das barbearias.
+              </CardDescription>
+            </div>
+            <Button asChild>
+              <Link href="/admin/barbershops/new">Nova barbearia</Link>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <form className="flex flex-wrap items-center gap-2">
@@ -114,6 +139,15 @@ const AdminBarbershopsPage = async ({
               <option value="ALL">Todas</option>
               <option value="ACTIVE">Ativas</option>
               <option value="INACTIVE">Inativas</option>
+            </select>
+            <select
+              name="exclusive"
+              defaultValue={exclusive}
+              className="bg-background border-input h-9 rounded-md border px-3 text-sm"
+            >
+              <option value="ALL">Exclusivas e nao exclusivas</option>
+              <option value="EXCLUSIVE">Somente exclusivas</option>
+              <option value="NON_EXCLUSIVE">Somente nao exclusivas</option>
             </select>
             <Button type="submit">Buscar</Button>
           </form>

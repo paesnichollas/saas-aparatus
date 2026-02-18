@@ -5,6 +5,7 @@ import {
   BarbershopOpeningHours,
   BarbershopService,
 } from "@/generated/prisma/client";
+import { resolveBarbershopImageUrl } from "@/lib/image-fallback";
 import { formatCurrency } from "@/lib/utils";
 import { Clock3, MapPin, Phone, Scissors, UsersRound } from "lucide-react";
 import Image from "next/image";
@@ -73,6 +74,7 @@ const formatMinutes = (minutes: number) => {
 const ExclusiveBarbershopLanding = ({
   barbershop,
 }: ExclusiveBarbershopLandingProps) => {
+  const barbershopImageUrl = resolveBarbershopImageUrl(barbershop.imageUrl);
   const startingPriceInCents =
     barbershop.services.length > 0
       ? Math.min(...barbershop.services.map((service) => service.priceInCents))
@@ -101,7 +103,7 @@ const ExclusiveBarbershopLanding = ({
       <section className="bg-card relative overflow-hidden rounded-3xl border shadow-lg">
         <div className="relative h-[23rem] w-full md:h-[26rem]">
           <Image
-            src={barbershop.imageUrl}
+            src={barbershopImageUrl}
             alt={barbershop.name}
             fill
             priority
@@ -260,7 +262,7 @@ const ExclusiveBarbershopLanding = ({
           <PageSectionTitle>Servicos em destaque</PageSectionTitle>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {featuredServices.map((service) => {
-              const serviceImageUrl = service.imageUrl ?? barbershop.imageUrl;
+              const serviceImageUrl = service.imageUrl ?? barbershopImageUrl;
 
               return (
                 <Card
@@ -305,7 +307,7 @@ const ExclusiveBarbershopLanding = ({
           {barbershop.services.length > 0 ? (
             <Accordion type="single" collapsible className="rounded-2xl border px-3">
               {barbershop.services.map((service) => {
-                const serviceImageUrl = service.imageUrl ?? barbershop.imageUrl;
+                const serviceImageUrl = service.imageUrl ?? barbershopImageUrl;
                 const serviceDescription =
                   service.description?.trim() || "Sem descrição.";
                 const firstPhone = barbershop.phones[0];

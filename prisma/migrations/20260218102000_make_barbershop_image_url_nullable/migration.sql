@@ -1,0 +1,2 @@
+ALTER TABLE "Barbershop"
+ALTER COLUMN "imageUrl" DROP NOT NULL;

@@ -24,7 +24,7 @@ model Barbershop {
   homePremiumTitle       String                  @default("Experiencia premium na home")
   homePremiumDescription String                  @default("Sua barbearia fica em destaque para todos os acessos em modo exclusivo.")
   homePremiumChips       String[]                @default(["Atendimento personalizado", "Reserva em poucos passos", "Visual profissional"])
-  imageUrl               String
+  imageUrl               String?
   logoUrl                String?
   exclusiveBarber        Boolean                 @default(false)
   phones                 String[]

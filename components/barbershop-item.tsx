@@ -1,4 +1,5 @@
 import { type BarbershopListItem } from "@/data/barbershops";
+import { resolveBarbershopImageUrl } from "@/lib/image-fallback";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -11,6 +12,7 @@ const BarbershopItem = ({ barbershop }: BarbershopItemProps) => {
     ? `/exclusive/${barbershop.id}`
     : `/barbershops/${barbershop.id}`;
   const barbershopHref = `${baseHref}?from=general_list`;
+  const barbershopImageUrl = resolveBarbershopImageUrl(barbershop.imageUrl);
 
   return (
     <Link
@@ -19,7 +21,7 @@ const BarbershopItem = ({ barbershop }: BarbershopItemProps) => {
     >
       <div className="absolute top-0 left-0 z-10 h-full w-full rounded-lg bg-linear-to-t from-black to-transparent" />
       <Image
-        src={barbershop.imageUrl}
+        src={barbershopImageUrl}
         alt={barbershop.name}
         fill
         className="rounded-xl object-cover"
