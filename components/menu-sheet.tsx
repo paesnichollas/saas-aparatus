@@ -16,6 +16,8 @@ import { toast } from "sonner";
 
 import { type UserRole } from "@/generated/prisma/client";
 import { authClient } from "@/lib/auth-client";
+import { type UserProvider } from "@/lib/user-provider";
+import { formatPhoneBR } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import {
@@ -27,18 +29,27 @@ import {
   SheetTrigger,
 } from "./ui/sheet";
 
+interface MenuSheetUserSummary {
+  name: string;
+  image: string | null;
+  phone: string | null;
+  provider: UserProvider;
+  email: string;
+  contactEmail: string | null;
+}
+
 interface MenuSheetProps {
   homeHref?: string;
   userRole?: UserRole | null;
+  userSummary?: MenuSheetUserSummary | null;
 }
 
 const MenuSheet = ({
   homeHref = "/",
   userRole = null,
+  userSummary = null,
 }: MenuSheetProps) => {
   const router = useRouter();
-  const { data: session } = authClient.useSession();
-  const user = session?.user;
 
   const handleLogout = async () => {
     const { error } = await authClient.signOut();
@@ -52,7 +63,14 @@ const MenuSheet = ({
     router.refresh();
   };
 
-  const isLoggedIn = Boolean(user);
+  const displayPhone = userSummary?.phone
+    ? formatPhoneBR(userSummary.phone) || null
+    : null;
+  const displayEmail =
+    userSummary?.provider === "phone"
+      ? userSummary.contactEmail
+      : (userSummary?.email ?? null);
+  const isLoggedIn = Boolean(userSummary);
   const canAccessOwnerPanel = userRole === "OWNER";
   const canAccessAdminPanel = userRole === "ADMIN";
 
@@ -70,17 +88,22 @@ const MenuSheet = ({
 
         <div className="flex flex-col gap-6 py-6">
           <div className="flex items-center justify-between px-5">
-            {user ? (
+            {userSummary ? (
               <div className="flex items-center gap-3">
                 <Avatar className="size-12">
-                  <AvatarImage src={user.image ?? ""} alt={user.name} />
+                  <AvatarImage src={userSummary.image ?? ""} alt={userSummary.name} />
                   <AvatarFallback>
-                    {user.name.charAt(0).toUpperCase()}
+                    {userSummary.name.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col">
-                  <span className="font-semibold">{user.name}</span>
-                  <span className="text-muted-foreground text-sm">{user.email}</span>
+                  <span className="font-semibold">{userSummary.name}</span>
+                  {displayPhone ? (
+                    <span className="text-muted-foreground text-sm">{displayPhone}</span>
+                  ) : null}
+                  {displayEmail ? (
+                    <span className="text-muted-foreground text-sm">{displayEmail}</span>
+                  ) : null}
                 </div>
               </div>
             ) : (

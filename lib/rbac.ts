@@ -11,11 +11,15 @@ import {
   isProfileIncompleteError,
 } from "./profile-completion-guard";
 import { prisma } from "./prisma";
+import { isUserProvider, type UserProvider } from "./user-provider";
 
 export type SessionUser = {
   id: string;
   name: string;
   email: string;
+  provider: UserProvider;
+  contactEmail: string | null;
+  phone: string | null;
   image: string | null;
   role: UserRole;
   barbershopId: string | null;
@@ -63,6 +67,9 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
       id: true,
       name: true,
       email: true,
+      provider: true,
+      contactEmail: true,
+      phone: true,
       image: true,
       role: true,
       isActive: true,
@@ -119,6 +126,9 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
     id: user.id,
     name: user.name,
     email: user.email,
+    provider: isUserProvider(user.provider) ? user.provider : "credentials",
+    contactEmail: user.contactEmail,
+    phone: user.phone,
     image: user.image,
     role: user.role,
     barbershopId: user.barbershopId,

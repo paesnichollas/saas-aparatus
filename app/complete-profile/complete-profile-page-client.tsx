@@ -67,6 +67,7 @@ const CompleteProfilePageClient = ({
   const [contactEmail, setContactEmail] = useState(initialContactEmail);
   const [fieldErrors, setFieldErrors] = useState<FormFieldErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const shouldShowContactEmail = provider !== "google";
 
   const requiresPhone = useMemo(() => {
     return provider === "phone" || provider === "google";
@@ -149,7 +150,11 @@ const CompleteProfilePageClient = ({
       nextFieldErrors.phone = "Informe um telefone valido.";
     }
 
-    if (normalizedContactEmail && !isValidContactEmail(normalizedContactEmail)) {
+    if (
+      shouldShowContactEmail &&
+      normalizedContactEmail &&
+      !isValidContactEmail(normalizedContactEmail)
+    ) {
       nextFieldErrors.contactEmail = "Informe um email valido.";
     }
 
@@ -174,8 +179,10 @@ const CompleteProfilePageClient = ({
         },
         body: JSON.stringify({
           name: normalizedName,
-          contactEmail: normalizedContactEmail,
           ...(requiresPhone ? { phone: normalizedPhone } : {}),
+          ...(shouldShowContactEmail
+            ? { contactEmail: normalizedContactEmail }
+            : {}),
         }),
       });
 
@@ -291,48 +298,52 @@ const CompleteProfilePageClient = ({
               </div>
             ) : null}
 
-            <div className="space-y-2">
-              <Label htmlFor="complete-profile-contact-email">Email (opcional)</Label>
-              <div className="relative">
-                <Mail className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-                <Input
-                  id="complete-profile-contact-email"
-                  type="email"
-                  value={contactEmail}
-                  autoComplete="email"
-                  onChange={(event) => {
-                    setContactEmail(event.target.value);
-                    clearFieldError("contactEmail");
-                  }}
-                  className="pl-9"
-                  placeholder="voce@exemplo.com"
-                  disabled={isSubmitting}
-                />
-              </div>
-              <p className="text-muted-foreground text-xs">
-                Se tiver, ajuda na recuperacao da conta e recebimento de
-                comprovantes.
-              </p>
-              {provider === "phone" ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="h-auto p-0 text-xs"
-                  onClick={() => {
-                    setContactEmail("");
-                    clearFieldError("contactEmail");
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Pular email por enquanto
-                </Button>
-              ) : null}
-              {fieldErrors.contactEmail ? (
-                <p className="text-destructive text-xs">
-                  {fieldErrors.contactEmail}
+            {shouldShowContactEmail ? (
+              <div className="space-y-2">
+                <Label htmlFor="complete-profile-contact-email">
+                  Email (opcional)
+                </Label>
+                <div className="relative">
+                  <Mail className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                  <Input
+                    id="complete-profile-contact-email"
+                    type="email"
+                    value={contactEmail}
+                    autoComplete="email"
+                    onChange={(event) => {
+                      setContactEmail(event.target.value);
+                      clearFieldError("contactEmail");
+                    }}
+                    className="pl-9"
+                    placeholder="voce@exemplo.com"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <p className="text-muted-foreground text-xs">
+                  Se tiver, ajuda na recuperacao da conta e recebimento de
+                  comprovantes.
                 </p>
-              ) : null}
-            </div>
+                {provider === "phone" ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => {
+                      setContactEmail("");
+                      clearFieldError("contactEmail");
+                    }}
+                    disabled={isSubmitting}
+                  >
+                    Pular email por enquanto
+                  </Button>
+                ) : null}
+                {fieldErrors.contactEmail ? (
+                  <p className="text-destructive text-xs">
+                    {fieldErrors.contactEmail}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             {fieldErrors.password ? (
               <p className="text-destructive text-xs">{fieldErrors.password}</p>
