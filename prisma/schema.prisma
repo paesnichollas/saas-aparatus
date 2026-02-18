@@ -122,6 +122,9 @@ model Booking {
 
   @@index([barberId])
   @@index([startAt])
+  @@index([barbershopId, date, cancelledAt])
+  @@index([barbershopId, paymentStatus, createdAt])
+  @@index([userId, date])
 }
 
 model BookingService {

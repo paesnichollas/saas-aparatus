@@ -2,6 +2,7 @@
 
 import { protectedActionClient } from "@/lib/action-client";
 import { ACTIVE_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
@@ -27,6 +28,7 @@ export const deleteBarber = protectedActionClient
           select: {
             id: true,
             slug: true,
+            publicSlug: true,
           },
         },
       },
@@ -75,8 +77,11 @@ export const deleteBarber = protectedActionClient
     });
 
     revalidatePath("/owner");
-    revalidatePath(`/b/${barber.barbershop.slug}`);
-    revalidatePath(`/barbershops/${barber.barbershop.id}`);
+    revalidatePublicBarbershopCache({
+      barbershopId: barber.barbershop.id,
+      slug: barber.barbershop.slug,
+      publicSlug: barber.barbershop.publicSlug,
+    });
 
     return {
       success: true,

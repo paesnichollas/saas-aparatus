@@ -27,6 +27,7 @@ export const getServiceById = async (serviceId: string) => {
         select: {
           id: true,
           slug: true,
+          publicSlug: true,
         },
       },
     },

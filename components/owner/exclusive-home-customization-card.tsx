@@ -238,8 +238,8 @@ const ExclusiveHomeCustomizationCard = ({
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              {chips.map((chip, index) => (
-                <Badge key={`${chip}-${index}`} variant="outline" className="gap-1">
+              {chips.map((chip) => (
+                <Badge key={chip} variant="outline" className="gap-1">
                   {chip}
                   <button
                     type="button"

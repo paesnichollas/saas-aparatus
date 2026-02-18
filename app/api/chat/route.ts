@@ -6,8 +6,41 @@ import z from "zod";
 import { createBooking } from "@/actions/create-booking";
 import { getDateAvailableTimeSlots } from "@/actions/get-date-available-time-slots";
 import { listBarbersByBarbershop } from "@/data/barbers";
+import { Prisma } from "@/generated/prisma/client";
 import { parseBookingDateOnly, parseBookingDateTime } from "@/lib/booking-time";
 import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
+
+const CHAT_BARBERSHOP_RESULT_LIMIT = 20;
+
+const CHAT_BARBERSHOP_SELECT = {
+  id: true,
+  name: true,
+  address: true,
+  slug: true,
+  exclusiveBarber: true,
+  isActive: true,
+  services: {
+    where: {
+      deletedAt: null,
+    },
+    orderBy: {
+      name: "asc",
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      priceInCents: true,
+      durationInMinutes: true,
+    },
+  },
+} satisfies Prisma.BarbershopSelect;
+
+type ChatBarbershop = Prisma.BarbershopGetPayload<{
+  select: typeof CHAT_BARBERSHOP_SELECT;
+}>;
 
 const INVALID_BARBERSHOP_CONTEXT_MESSAGE = "Contexto da barbearia inválido";
 const FORBIDDEN_BARBERSHOP_CONTEXT_ERROR_CODE = "FORBIDDEN_CONTEXT";
@@ -149,25 +182,14 @@ export const POST = async (request: Request) => {
   const requestedBarbershopPublicSlug =
     requestUrl.searchParams.get("barbershopPublicSlug")?.trim() ?? "";
 
-  let exclusiveBarbershop: Awaited<
-    ReturnType<typeof prisma.barbershop.findUnique>
-  > | null = null;
+  let exclusiveBarbershop: ChatBarbershop | null = null;
 
   if (hasBarbershopPublicSlugParam && requestedBarbershopPublicSlug.length > 0) {
     exclusiveBarbershop = await prisma.barbershop.findUnique({
       where: {
         slug: requestedBarbershopPublicSlug,
       },
-      include: {
-        services: {
-          where: {
-            deletedAt: null,
-          },
-          orderBy: {
-            name: "asc",
-          },
-        },
-      },
+      select: CHAT_BARBERSHOP_SELECT,
     });
   }
 
@@ -210,11 +232,6 @@ export const POST = async (request: Request) => {
             ),
         }),
         execute: async ({ name }) => {
-          console.log("searchBarbershops", name, {
-            isExclusiveContext,
-            exclusiveBarbershopId,
-          });
-
           if (isExclusiveContext && exclusiveBarbershop) {
             const normalizedName = name?.trim().toLowerCase();
 
@@ -229,16 +246,11 @@ export const POST = async (request: Request) => {
 
           if (!name?.trim()) {
             return prisma.barbershop.findMany({
-              include: {
-                services: {
-                  where: {
-                    deletedAt: null,
-                  },
-                  orderBy: {
-                    name: "asc",
-                  },
-                },
+              select: CHAT_BARBERSHOP_SELECT,
+              orderBy: {
+                name: "asc",
               },
+              take: CHAT_BARBERSHOP_RESULT_LIMIT,
             });
           }
 
@@ -249,16 +261,11 @@ export const POST = async (request: Request) => {
                 mode: "insensitive",
               },
             },
-            include: {
-              services: {
-                where: {
-                  deletedAt: null,
-                },
-                orderBy: {
-                  name: "asc",
-                },
-              },
+            select: CHAT_BARBERSHOP_SELECT,
+            orderBy: {
+              name: "asc",
             },
+            take: CHAT_BARBERSHOP_RESULT_LIMIT,
           });
         },
       }),
@@ -269,11 +276,6 @@ export const POST = async (request: Request) => {
           barbershopId: z.uuid(),
         }),
         execute: async ({ barbershopId }) => {
-          console.log("listBarbersByBarbershop", barbershopId, {
-            isExclusiveContext,
-            exclusiveBarbershopId,
-          });
-
           if (
             isForbiddenExclusiveContext(
               isExclusiveContext,
@@ -313,15 +315,6 @@ export const POST = async (request: Request) => {
             ),
         }),
         execute: async ({ barbershopId, barberId, serviceId, date }) => {
-          console.log("getAvailableTimeSlotsForBarbershop", {
-            barbershopId,
-            barberId,
-            serviceId,
-            date,
-            isExclusiveContext,
-            exclusiveBarbershopId,
-          });
-
           if (
             isForbiddenExclusiveContext(
               isExclusiveContext,
@@ -432,15 +425,6 @@ export const POST = async (request: Request) => {
             ),
         }),
         execute: async ({ barbershopId, serviceId, barberId, date }) => {
-          console.log("createBooking", {
-            barbershopId,
-            serviceId,
-            barberId,
-            date,
-            isExclusiveContext,
-            exclusiveBarbershopId,
-          });
-
           if (
             isForbiddenExclusiveContext(
               isExclusiveContext,
@@ -527,3 +511,4 @@ export const POST = async (request: Request) => {
 
   return result.toUIMessageStreamResponse();
 };
+

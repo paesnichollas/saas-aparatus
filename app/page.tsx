@@ -13,7 +13,7 @@ import {
   getExclusiveBarbershopByContextId,
   getPopularBarbershops,
 } from "@/data/barbershops";
-import { getUserBookings } from "@/data/bookings";
+import { getUserConfirmedBookings } from "@/data/bookings";
 import { getPreferredBarbershopIdForUser } from "@/data/customer-barbershops";
 import {
   PageContainer,
@@ -62,12 +62,11 @@ export default async function Home() {
     );
   }
 
-  const [barbershops, popularBarbershops, { confirmedBookings }] =
-    await Promise.all([
-      getBarbershops(),
-      getPopularBarbershops(),
-      getUserBookings(),
-    ]);
+  const [barbershops, popularBarbershops, confirmedBookings] = await Promise.all([
+    getBarbershops(),
+    getPopularBarbershops(),
+    getUserConfirmedBookings(),
+  ]);
 
   return (
     <div>

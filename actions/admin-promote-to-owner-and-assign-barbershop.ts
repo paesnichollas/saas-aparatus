@@ -2,6 +2,7 @@
 
 import { adminPromoteToOwnerAndAssignBarbershop } from "@/data/admin/users";
 import { adminActionClient } from "@/lib/action-client";
+import { getActionErrorMessage } from "@/lib/action-errors";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -30,7 +31,9 @@ export const adminPromoteToOwnerAndAssignBarbershopAction = adminActionClient
       return result;
     } catch (error) {
       returnValidationErrors(inputSchema, {
-        _errors: [error instanceof Error ? error.message : "Falha ao promover usuario para owner."],
+        _errors: [
+          getActionErrorMessage(error, "Falha ao promover usuario para owner."),
+        ],
       });
     }
   });

@@ -1,6 +1,7 @@
 "use server";
 
 import { protectedActionClient } from "@/lib/action-client";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
@@ -27,6 +28,7 @@ export const deleteService = protectedActionClient
           select: {
             id: true,
             slug: true,
+            publicSlug: true,
           },
         },
       },
@@ -48,8 +50,11 @@ export const deleteService = protectedActionClient
     });
 
     revalidatePath("/owner");
-    revalidatePath(`/b/${service.barbershop.slug}`);
-    revalidatePath(`/barbershops/${service.barbershop.id}`);
+    revalidatePublicBarbershopCache({
+      barbershopId: service.barbershop.id,
+      slug: service.barbershop.slug,
+      publicSlug: service.barbershop.publicSlug,
+    });
 
     return {
       success: true,

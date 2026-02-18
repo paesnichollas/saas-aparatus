@@ -7,6 +7,52 @@ import { requireAdmin } from "@/lib/rbac";
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 
+const ADMIN_BOOKING_LIST_SELECT = {
+  id: true,
+  stripeSessionId: true,
+  stripeChargeId: true,
+  paymentMethod: true,
+  paymentStatus: true,
+  barbershopId: true,
+  barberId: true,
+  serviceId: true,
+  userId: true,
+  totalDurationMinutes: true,
+  totalPriceInCents: true,
+  startAt: true,
+  endAt: true,
+  paymentConfirmedAt: true,
+  date: true,
+  cancelledAt: true,
+  createdAt: true,
+  updatedAt: true,
+  user: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+    },
+  },
+  barbershop: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  barber: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+  service: {
+    select: {
+      id: true,
+      name: true,
+    },
+  },
+} satisfies Prisma.BookingSelect;
+
 export type AdminBookingStatusFilter =
   | "ALL"
   | "UPCOMING"
@@ -102,33 +148,7 @@ export const adminListBookings = async ({
     prisma.booking.count({ where }),
     prisma.booking.findMany({
       where,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        barbershop: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        barber: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        service: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+      select: ADMIN_BOOKING_LIST_SELECT,
       orderBy: {
         date: "desc",
       },

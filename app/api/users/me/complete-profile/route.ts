@@ -254,9 +254,12 @@ export async function PATCH(request: Request) {
 
   const userDataToUpdate: Prisma.UserUpdateInput = {
     name: nextName,
-    contactEmail: nextContactEmail,
     profileCompleted: true,
   };
+
+  if (nextContactEmail !== null) {
+    userDataToUpdate.contactEmail = nextContactEmail;
+  }
 
   if ((provider === "phone" || provider === "google") && nextPhone) {
     userDataToUpdate.phone = nextPhone;

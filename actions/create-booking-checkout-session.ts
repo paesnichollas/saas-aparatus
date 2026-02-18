@@ -1,6 +1,8 @@
 "use server";
 
 import { criticalActionClient } from "@/lib/action-client";
+import { revalidateBookingSurfaces } from "@/lib/cache-invalidation";
+import { scheduleBookingNotificationJobs } from "@/lib/notifications/notification-jobs";
 import {
   BOOKING_SLOT_BUFFER_MINUTES,
   getBookingDayBounds,
@@ -14,7 +16,6 @@ import {
 } from "@/lib/booking-calculations";
 import { hasMinuteIntervalOverlap } from "@/lib/booking-interval";
 import { ACTIVE_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
-import { scheduleBookingNotificationJobs } from "@/lib/notifications/notification-jobs";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { returnValidationErrors } from "next-safe-action";
@@ -282,6 +283,7 @@ export const createBookingCheckoutSession = criticalActionClient
         });
 
         await scheduleBookingNotificationJobs(booking.id);
+        revalidateBookingSurfaces();
 
         return {
           kind: "created" as const,

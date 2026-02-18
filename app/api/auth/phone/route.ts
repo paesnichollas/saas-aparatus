@@ -23,22 +23,6 @@ const ACCOUNT_DEACTIVATED_ERROR_MESSAGE = "Conta desativada";
 const PHONE_ALREADY_REGISTERED_ERROR_MESSAGE =
   "J\u00E1 h\u00E1 um usu\u00E1rio cadastrado com esse telefone.";
 
-const getSafeCallbackUrl = (callbackUrl: string | undefined) => {
-  if (!callbackUrl) {
-    return "/";
-  }
-
-  if (!callbackUrl.startsWith("/")) {
-    return "/";
-  }
-
-  if (callbackUrl.startsWith("//")) {
-    return "/";
-  }
-
-  return callbackUrl;
-};
-
 const appendSetCookieHeaders = (
   sourceHeaders: Headers,
   targetHeaders: Headers,
@@ -147,11 +131,6 @@ export async function POST(request: Request) {
   }
 
   const normalizedCustomerName = getNormalizedCustomerName(requestBody.name);
-  const safeCallbackUrl = getSafeCallbackUrl(requestBody.callbackUrl);
-  const callbackPath = `/auth/callback?callbackUrl=${encodeURIComponent(
-    safeCallbackUrl,
-  )}`;
-  const authCallbackUrl = new URL(callbackPath, request.url).toString();
   const phoneAuthEmail = getPhoneAuthEmail(normalizedPhoneNumber);
   const phoneAuthPassword = getPhoneAuthPassword(normalizedPhoneNumber);
 

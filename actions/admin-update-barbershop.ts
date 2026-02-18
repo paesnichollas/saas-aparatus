@@ -2,6 +2,8 @@
 
 import { adminUpdateBarbershop } from "@/data/admin/barbershops";
 import { adminActionClient } from "@/lib/action-client";
+import { getActionErrorMessage } from "@/lib/action-errors";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -25,13 +27,16 @@ export const adminUpdateBarbershopAction = adminActionClient
       revalidatePath("/admin/barbershops");
       revalidatePath(`/admin/barbershops/${updatedBarbershop.id}`);
       revalidatePath("/owner");
-      revalidatePath(`/b/${updatedBarbershop.slug}`);
-      revalidatePath(`/barbershops/${updatedBarbershop.id}`);
+      revalidatePublicBarbershopCache({
+        barbershopId: updatedBarbershop.id,
+        slug: updatedBarbershop.slug,
+        publicSlug: updatedBarbershop.publicSlug,
+      });
 
       return updatedBarbershop;
     } catch (error) {
       returnValidationErrors(inputSchema, {
-        _errors: [error instanceof Error ? error.message : "Falha ao atualizar barbearia."],
+        _errors: [getActionErrorMessage(error, "Falha ao atualizar barbearia.")],
       });
     }
   });

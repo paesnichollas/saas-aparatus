@@ -2,6 +2,9 @@
 
 import { adminEnableBarbershopAccess } from "@/data/admin/users";
 import { protectedActionClient } from "@/lib/action-client";
+import { getActionErrorMessage } from "@/lib/action-errors";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
+import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -18,18 +21,34 @@ export const adminEnableBarbershopAccessAction = protectedActionClient
         actorUserId: user.id,
         barbershopId: parsedInput.barbershopId,
       });
+      const barbershop = await prisma.barbershop.findUnique({
+        where: {
+          id: result.barbershopId,
+        },
+        select: {
+          id: true,
+          slug: true,
+          publicSlug: true,
+        },
+      });
 
       revalidatePath("/admin/owners");
       revalidatePath("/admin/barbershops");
-      revalidatePath("/");
+      revalidatePath("/admin");
+
+      if (barbershop) {
+        revalidatePublicBarbershopCache({
+          barbershopId: barbershop.id,
+          slug: barbershop.slug,
+          publicSlug: barbershop.publicSlug,
+        });
+      }
 
       return result;
     } catch (error) {
       returnValidationErrors(inputSchema, {
         _errors: [
-          error instanceof Error
-            ? error.message
-            : "Falha ao reativar acesso da barbearia.",
+          getActionErrorMessage(error, "Falha ao reativar acesso da barbearia."),
         ],
       });
     }

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { SHOW_CHATBOT_ENTRYPOINTS } from "@/constants/feature-flags";
-import { getUserRoleFromSession } from "@/lib/rbac";
+import { getSessionUser } from "@/lib/rbac";
 import { Button } from "./ui/button";
 import MenuSheet from "./menu-sheet";
 import ThemeToggle from "./theme-toggle";
@@ -14,7 +14,8 @@ interface HeaderProps {
 }
 
 const Header = async ({ homeHref = "/", chatHref = "/chat" }: HeaderProps) => {
-  const userRole = await getUserRoleFromSession();
+  const sessionUser = await getSessionUser();
+  const userRole = sessionUser?.role ?? null;
 
   return (
     <header className="bg-background flex items-center justify-between px-5 py-6">
@@ -39,6 +40,18 @@ const Header = async ({ homeHref = "/", chatHref = "/chat" }: HeaderProps) => {
         <MenuSheet
           homeHref={homeHref}
           userRole={userRole}
+          userSummary={
+            sessionUser
+              ? {
+                  name: sessionUser.name,
+                  image: sessionUser.image,
+                  phone: sessionUser.phone,
+                  provider: sessionUser.provider,
+                  email: sessionUser.email,
+                  contactEmail: sessionUser.contactEmail,
+                }
+              : null
+          }
         />
       </div>
     </header>

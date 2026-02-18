@@ -1,6 +1,7 @@
 "use server";
 
 import { protectedActionClient } from "@/lib/action-client";
+import { revalidatePublicBarbershopCache } from "@/lib/cache-invalidation";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { returnValidationErrors } from "next-safe-action";
@@ -50,6 +51,8 @@ export const updateBarbershopSchedule = protectedActionClient
         },
         select: {
           id: true,
+          slug: true,
+          publicSlug: true,
         },
       });
 
@@ -85,6 +88,11 @@ export const updateBarbershopSchedule = protectedActionClient
       );
 
       revalidatePath("/owner");
+      revalidatePublicBarbershopCache({
+        barbershopId: barbershop.id,
+        slug: barbershop.slug,
+        publicSlug: barbershop.publicSlug,
+      });
 
       return {
         success: true,
