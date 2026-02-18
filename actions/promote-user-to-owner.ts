@@ -11,7 +11,7 @@ import { z } from "zod";
 
 const inputSchema = z.object({
   userId: z.string().trim().min(1),
-  barbershopId: z.uuid().optional(),
+  barbershopId: z.uuid(),
   allowTransfer: z.boolean().optional(),
 });
 

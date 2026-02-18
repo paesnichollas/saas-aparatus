@@ -17,11 +17,6 @@ const normalizeRequiredId = (value: string, message: string) => {
   return normalizedValue;
 };
 
-const normalizeOptionalId = (value: string | undefined | null) => {
-  const normalizedValue = value?.trim();
-  return normalizedValue ? normalizedValue : null;
-};
-
 const toNonOwnerRole = (role: UserRole): UserRole => {
   if (role === OWNER_ROLE) {
     return CUSTOMER_ROLE;
@@ -45,42 +40,6 @@ const assertAdminActor = async (actorUserId: string) => {
       "Somente administradores podem alterar ownership de usuarios.",
     );
   }
-};
-
-const resolveBarbershopIdForPromotion = async ({
-  tx,
-  userId,
-  explicitBarbershopId,
-  currentBarbershopId,
-}: {
-  tx: Prisma.TransactionClient;
-  userId: string;
-  explicitBarbershopId: string | null;
-  currentBarbershopId: string | null;
-}) => {
-  if (explicitBarbershopId) {
-    return explicitBarbershopId;
-  }
-
-  if (currentBarbershopId) {
-    return currentBarbershopId;
-  }
-
-  const linkedBarbershops = await tx.customerBarbershop.findMany({
-    where: {
-      customerId: userId,
-    },
-    select: {
-      barbershopId: true,
-    },
-    distinct: ["barbershopId"],
-  });
-
-  if (linkedBarbershops.length === 1) {
-    return linkedBarbershops[0].barbershopId;
-  }
-
-  throw new OwnerAssignmentError("Selecione uma barbearia para vincular.");
 };
 
 const resolveCurrentBarbershopIdForDemotion = async ({
@@ -123,7 +82,7 @@ const resolveCurrentBarbershopIdForDemotion = async ({
 interface PromoteUserToOwnerInput {
   actorUserId: string;
   userId: string;
-  barbershopId?: string;
+  barbershopId: string;
   allowTransfer?: boolean;
 }
 
@@ -159,7 +118,10 @@ export const promoteUserToOwnerByAdmin = async ({
     "Usuario administrador invalido.",
   );
   const normalizedUserId = normalizeRequiredId(userId, "Usuario invalido.");
-  const normalizedBarbershopId = normalizeOptionalId(barbershopId);
+  const normalizedBarbershopId = normalizeRequiredId(
+    barbershopId,
+    "Selecione uma barbearia para vincular.",
+  );
 
   await assertAdminActor(normalizedActorUserId);
 
@@ -173,7 +135,6 @@ export const promoteUserToOwnerByAdmin = async ({
           id: true,
           role: true,
           barbershopId: true,
-          currentBarbershopId: true,
         },
       });
 
@@ -181,16 +142,9 @@ export const promoteUserToOwnerByAdmin = async ({
         throw new OwnerAssignmentError("Usuario nao encontrado.");
       }
 
-      const resolvedBarbershopId = await resolveBarbershopIdForPromotion({
-        tx,
-        userId: targetUser.id,
-        explicitBarbershopId: normalizedBarbershopId,
-        currentBarbershopId: targetUser.currentBarbershopId,
-      });
-
       const targetBarbershop = await tx.barbershop.findUnique({
         where: {
-          id: resolvedBarbershopId,
+          id: normalizedBarbershopId,
         },
         select: {
           id: true,

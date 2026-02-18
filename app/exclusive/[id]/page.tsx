@@ -13,7 +13,7 @@ interface ExclusiveBarbershopPageProps {
 }
 
 const ExclusiveBarbershopPage = async ({ params }: ExclusiveBarbershopPageProps) => {
-  await requireAuthenticatedUser();
+  const authenticatedUser = await requireAuthenticatedUser();
 
   const { id } = await params;
   const barbershop = await getBarbershopById(id);
@@ -26,10 +26,13 @@ const ExclusiveBarbershopPage = async ({ params }: ExclusiveBarbershopPageProps)
     redirect(`/barbershops/${barbershop.id}`);
   }
 
+  const homeHref =
+    authenticatedUser.role === "OWNER" ? `/b/${barbershop.slug}` : "/home";
+
   return (
     <div>
       <Header
-        homeHref="/home"
+        homeHref={homeHref}
         chatHref={`/chat?barbershopPublicSlug=${encodeURIComponent(barbershop.slug)}`}
       />
       <ExclusiveBarbershopLanding barbershop={barbershop} />

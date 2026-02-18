@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 import BarbershopItem from "@/components/barbershop-item";
 import BackToTopButton from "@/components/back-to-top-button";
@@ -15,6 +16,7 @@ import {
 } from "@/data/barbershops";
 import { getUserConfirmedBookings } from "@/data/bookings";
 import { getPreferredBarbershopIdForUser } from "@/data/customer-barbershops";
+import { resolveAuthenticatedUserHomeDestination } from "@/data/home-destination";
 import {
   PageContainer,
   PageSectionContent,
@@ -30,6 +32,12 @@ import banner from "@/public/banner.png";
 
 export default async function Home() {
   const user = await requireAuthenticatedUser();
+  const userHomeDestination = await resolveAuthenticatedUserHomeDestination(user.id);
+
+  if (userHomeDestination) {
+    redirect(userHomeDestination);
+  }
+
   const cookieStore = await cookies();
   const forceGeneralHomeCookieValue =
     cookieStore.get(BARBERSHOP_FORCE_GENERAL_HOME_COOKIE_NAME)?.value ?? "";
