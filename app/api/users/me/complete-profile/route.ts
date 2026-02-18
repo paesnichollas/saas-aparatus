@@ -8,6 +8,7 @@ import { normalizePhoneToE164 } from "@/lib/phone-normalization";
 import {
   EMAIL_IN_USE_CODE,
   PROFILE_INCOMPLETE_FIELDS_CODE,
+  isUserProfileComplete,
 } from "@/lib/profile-completion";
 import { prisma } from "@/lib/prisma";
 import { resolveAndPersistUserProvider } from "@/lib/user-provider-server";
@@ -252,9 +253,16 @@ export async function PATCH(request: Request) {
     }
   }
 
+  const profileComplete = isUserProfileComplete({
+    name: nextName,
+    phone: nextPhone,
+    email: currentUser.email,
+    provider,
+  });
+
   const userDataToUpdate: Prisma.UserUpdateInput = {
     name: nextName,
-    profileCompleted: true,
+    profileCompleted: profileComplete,
   };
 
   if (nextContactEmail !== null) {
@@ -331,6 +339,7 @@ export async function PATCH(request: Request) {
   const response = NextResponse.json(
     {
       ok: true,
+      profileComplete,
     },
     { status: 200 },
   );

@@ -10,6 +10,7 @@ import {
   normalizePhoneNumber,
 } from "@/lib/auth-phone";
 import { normalizePhoneToE164 } from "@/lib/phone-normalization";
+import { isUserProfileComplete } from "@/lib/profile-completion";
 
 interface PhoneAuthRequestBody {
   name?: string;
@@ -246,10 +247,12 @@ export async function POST(request: Request) {
     select: {
       id: true,
       name: true,
+      email: true,
       phone: true,
       provider: true,
       phoneVerified: true,
       phoneVerifiedAt: true,
+      profileCompleted: true,
     },
   });
 
@@ -258,11 +261,21 @@ export async function POST(request: Request) {
     const shouldUpdateProvider = user.provider !== "phone";
     const shouldUpdatePhoneVerification =
       !user.phoneVerified || user.phoneVerifiedAt === null;
+    const nextPhone = shouldUpdatePhone ? normalizedPhoneE164 : user.phone;
+    const profileComplete = isUserProfileComplete({
+      name: user.name,
+      phone: nextPhone,
+      email: user.email,
+      provider: "phone",
+    });
+    const shouldUpdateProfileCompleted =
+      user.profileCompleted !== profileComplete;
 
     if (
       shouldUpdatePhone ||
       shouldUpdateProvider ||
-      shouldUpdatePhoneVerification
+      shouldUpdatePhoneVerification ||
+      shouldUpdateProfileCompleted
     ) {
       const userDataToUpdate: Prisma.UserUpdateInput = {
         provider: "phone",
@@ -275,6 +288,10 @@ export async function POST(request: Request) {
       if (shouldUpdatePhoneVerification) {
         userDataToUpdate.phoneVerified = true;
         userDataToUpdate.phoneVerifiedAt = new Date();
+      }
+
+      if (shouldUpdateProfileCompleted) {
+        userDataToUpdate.profileCompleted = profileComplete;
       }
 
       try {

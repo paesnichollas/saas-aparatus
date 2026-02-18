@@ -5,13 +5,17 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth } from "./auth";
-import { buildCompleteProfileUrl } from "./profile-completion";
+import {
+  buildCompleteProfileUrl,
+  isUserProfileComplete,
+} from "./profile-completion";
 import {
   assertUserHasCompletedProfile,
   isProfileIncompleteError,
 } from "./profile-completion-guard";
 import { prisma } from "./prisma";
-import { isUserProvider, type UserProvider } from "./user-provider";
+import { type UserProvider } from "./user-provider";
+import { resolveAndPersistUserProvider } from "./user-provider-server";
 
 export type SessionUser = {
   id: string;
@@ -23,6 +27,7 @@ export type SessionUser = {
   image: string | null;
   role: UserRole;
   barbershopId: string | null;
+  profileComplete: boolean;
 };
 
 export const isAdmin = (role: UserRole | null | undefined) => role === "ADMIN";
@@ -122,16 +127,30 @@ export const getSessionUser = async (): Promise<SessionUser | null> => {
     });
   }
 
+  const provider = await resolveAndPersistUserProvider({
+    id: user.id,
+    email: user.email,
+    provider: user.provider,
+  });
+
+  const profileComplete = isUserProfileComplete({
+    name: user.name,
+    phone: user.phone,
+    email: user.email,
+    provider,
+  });
+
   return {
     id: user.id,
     name: user.name,
     email: user.email,
-    provider: isUserProvider(user.provider) ? user.provider : "credentials",
+    provider,
     contactEmail: user.contactEmail,
     phone: user.phone,
     image: user.image,
     role: user.role,
     barbershopId: user.barbershopId,
+    profileComplete,
   };
 };
 

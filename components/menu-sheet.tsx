@@ -9,6 +9,7 @@ import {
   MenuIcon,
   Shield,
   ShieldCheck,
+  UserRound,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -138,6 +139,17 @@ const MenuSheet = ({
                 Agendamentos
               </Link>
             </SheetClose>
+            {isLoggedIn ? (
+              <SheetClose asChild>
+                <Link
+                  href="/profile"
+                  className="flex items-center gap-3 px-5 py-3 text-sm font-medium"
+                >
+                  <UserRound className="size-4" />
+                  Perfil
+                </Link>
+              </SheetClose>
+            ) : null}
             {isLoggedIn && canAccessOwnerPanel && (
               <>
                 <SheetClose asChild>

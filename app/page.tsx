@@ -8,6 +8,7 @@ import BookingItem from "@/components/booking-item";
 import ExclusiveBarbershopLanding from "@/components/exclusive-barbershop-landing";
 import Footer from "@/components/footer";
 import Header from "@/components/header";
+import ProfileIncompleteBanner from "@/components/profile-incomplete-banner";
 import QuickSearch from "@/components/quick-search";
 import {
   getBarbershops,
@@ -63,6 +64,7 @@ export default async function Home() {
           homeHref="/home"
           chatHref={`/chat?barbershopPublicSlug=${encodeURIComponent(exclusiveBarbershop.slug)}`}
         />
+        <ProfileIncompleteBanner profileComplete={user.profileComplete} />
         <ExclusiveBarbershopLanding barbershop={exclusiveBarbershop} />
         <Footer />
         <BackToTopButton />
@@ -79,6 +81,7 @@ export default async function Home() {
   return (
     <div>
       <Header />
+      <ProfileIncompleteBanner profileComplete={user.profileComplete} />
       <PageContainer>
         <QuickSearch />
         <Image
