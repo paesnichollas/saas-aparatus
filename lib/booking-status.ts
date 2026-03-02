@@ -64,7 +64,7 @@ export const getBookingDisplayStatus = ({
 
 export const getBookingDisplayStatusLabel = (status: BookingDisplayStatus) => {
   if (status === "cancelled") {
-    return "Cancelada";
+    return "Cancelado";
   }
 
   if (status === "failed") {
@@ -76,10 +76,10 @@ export const getBookingDisplayStatusLabel = (status: BookingDisplayStatus) => {
   }
 
   if (status === "confirmed") {
-    return "Confirmada";
+    return "Confirmado";
   }
 
-  return "Finalizada";
+  return "Finalizado";
 };
 
 export const getBookingDisplayStatusVariant = (

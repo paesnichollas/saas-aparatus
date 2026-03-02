@@ -134,7 +134,7 @@ const AdminOwnersPage = async ({ searchParams }: AdminOwnersPageProps) => {
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-muted-foreground text-sm">
-              Pagina {usersResult.page} de {usersResult.totalPages} ({usersResult.totalCount}{" "}
+              Página {usersResult.page} de {usersResult.totalPages} ({usersResult.totalCount}{" "}
               resultados)
             </p>
             <div className="flex items-center gap-2">
@@ -153,7 +153,7 @@ const AdminOwnersPage = async ({ searchParams }: AdminOwnersPageProps) => {
                     Math.min(usersResult.totalPages, usersResult.page + 1),
                   )}
                 >
-                  Proxima
+                  Próximo
                 </Link>
               </Button>
             </div>

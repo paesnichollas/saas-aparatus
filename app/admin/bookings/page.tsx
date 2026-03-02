@@ -100,7 +100,7 @@ const getBookingStatusLabel = ({
   paymentStatus: string;
 }) => {
   if (cancelledAt) {
-    return "Cancelada";
+    return "Cancelado";
   }
 
   if (paymentStatus === "FAILED") {
@@ -108,10 +108,10 @@ const getBookingStatusLabel = ({
   }
 
   if (date < new Date()) {
-    return "Passada";
+    return "Passado";
   }
 
-  return "Proxima";
+  return "Próximo";
 };
 
 const AdminBookingsPage = async ({ searchParams }: AdminBookingsPageProps) => {
@@ -255,7 +255,7 @@ const AdminBookingsPage = async ({ searchParams }: AdminBookingsPageProps) => {
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-muted-foreground text-sm">
-              Pagina {bookingsResult.page} de {bookingsResult.totalPages} (
+              Página {bookingsResult.page} de {bookingsResult.totalPages} (
               {bookingsResult.totalCount} resultados)
             </p>
             <div className="flex items-center gap-2">
@@ -274,7 +274,7 @@ const AdminBookingsPage = async ({ searchParams }: AdminBookingsPageProps) => {
                     Math.min(bookingsResult.totalPages, bookingsResult.page + 1),
                   )}
                 >
-                  Proxima
+                  Próximo
                 </Link>
               </Button>
             </div>

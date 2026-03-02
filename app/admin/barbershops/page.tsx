@@ -235,7 +235,7 @@ const AdminBarbershopsPage = async ({
 
           <div className="flex items-center justify-between gap-2">
             <p className="text-muted-foreground text-sm">
-              Pagina {result.page} de {result.totalPages} ({result.totalCount} resultados)
+              Página {result.page} de {result.totalPages} ({result.totalCount} resultados)
             </p>
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" disabled={result.page <= 1}>
@@ -253,7 +253,7 @@ const AdminBarbershopsPage = async ({
                     Math.min(result.totalPages, result.page + 1),
                   )}
                 >
-                  Proxima
+                  Próximo
                 </Link>
               </Button>
             </div>
