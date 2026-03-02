@@ -3,7 +3,7 @@ import { convertToModelMessages, stepCountIs, streamText, tool } from "ai";
 import { NextResponse } from "next/server";
 import z from "zod";
 
-import { createBooking } from "@/actions/create-booking";
+import { createBookingCheckoutSession } from "@/actions/create-booking-checkout-session";
 import { getDateAvailableTimeSlots } from "@/actions/get-date-available-time-slots";
 import { listBarbersByBarbershop } from "@/data/barbers";
 import { Prisma } from "@/generated/prisma/client";
@@ -79,7 +79,11 @@ const isUnauthorizedErrorMessage = (message: string | null) => {
   }
 
   const normalizedMessage = normalizeForMessageMatch(message);
-  return normalizedMessage.includes("nao autorizado") || normalizedMessage.includes("login");
+  return (
+    normalizedMessage.includes("nao autorizado") ||
+    normalizedMessage.includes("não autorizado") ||
+    normalizedMessage.includes("login")
+  );
 };
 
 const getSystemPrompt = (isExclusiveContext: boolean) => {
@@ -153,8 +157,10 @@ Criação do agendamento:
   * serviceId: ID do serviço escolhido
   * barberId: ID do barbeiro escolhido
   * date: Data e horário no formato ISO (YYYY-MM-DDTHH:mm:ss) - exemplo: "2025-11-05T10:00:00"
+  * paymentMethod: use "IN_PERSON" por padrão. Use "STRIPE" apenas quando o usuário pedir explicitamente pagamento online.
 - NUNCA tente criar agendamento sem barberId escolhido.
-- Se a criação for bem-sucedida (success: true), informe ao usuário que o agendamento foi confirmado com sucesso.
+- Se a criação retornar requiresCheckout=true, informe que o agendamento foi reservado e que o pagamento precisa ser concluído no checkout.
+- Se a criação retornar requiresCheckout=false, informe ao usuário que o agendamento foi confirmado com sucesso.
 - Se houver erro (success: false), explique o erro ao usuário:
   * Se o errorCode for "UNAUTHORIZED", informe que é necessário fazer login para criar um agendamento.
   * Para outros erros, informe que houve um problema e peça para tentar novamente.
@@ -431,8 +437,15 @@ export const POST = async (request: Request) => {
             .describe(
               "A data e horário no formato ISO (YYYY-MM-DDTHH:mm:ss) para criar o agendamento.",
             ),
+          paymentMethod: z.enum(["STRIPE", "IN_PERSON"]).optional(),
         }),
-        execute: async ({ barbershopId, serviceId, barberId, date }) => {
+        execute: async ({
+          barbershopId,
+          serviceId,
+          barberId,
+          date,
+          paymentMethod,
+        }) => {
           if (
             isForbiddenExclusiveContext(
               isExclusiveContext,
@@ -457,11 +470,12 @@ export const POST = async (request: Request) => {
           }
 
           try {
-            const createBookingResult = await createBooking({
+            const createBookingResult = await createBookingCheckoutSession({
               barbershopId,
-              serviceId,
               barberId,
-              date: parsedDate,
+              serviceIds: [serviceId],
+              startAt: parsedDate,
+              paymentMethod: paymentMethod ?? "IN_PERSON",
             });
 
             const validationMessage = getValidationErrorMessage(
@@ -486,7 +500,8 @@ export const POST = async (request: Request) => {
               };
             }
 
-            if (!createBookingResult.data) {
+            const checkoutResult = createBookingResult.data;
+            if (!checkoutResult) {
               return {
                 success: false,
                 errorCode: "UNKNOWN_ERROR",
@@ -494,9 +509,20 @@ export const POST = async (request: Request) => {
               };
             }
 
+            if (checkoutResult.kind === "stripe") {
+              return {
+                success: true,
+                bookingId: checkoutResult.bookingId,
+                requiresCheckout: true,
+                sessionId: checkoutResult.sessionId,
+                checkoutUrl: checkoutResult.checkoutUrl,
+              };
+            }
+
             return {
               success: true,
-              bookingId: createBookingResult.data.id,
+              bookingId: checkoutResult.bookingId,
+              requiresCheckout: false,
             };
           } catch (error) {
             console.error("createBooking error", error);
@@ -519,4 +545,3 @@ export const POST = async (request: Request) => {
 
   return result.toUIMessageStreamResponse();
 };
-

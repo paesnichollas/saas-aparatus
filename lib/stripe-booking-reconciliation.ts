@@ -17,6 +17,7 @@ type BookingReconciliationRecord = Prisma.BookingGetPayload<{
     id: true;
     stripeSessionId: true;
     stripeChargeId: true;
+    paymentMethod: true;
     paymentStatus: true;
     barbershopId: true;
     barberId: true;
@@ -94,6 +95,16 @@ const reconcilePendingBooking = async ({
       bookingId: booking.id,
       stripeSessionId: booking.stripeSessionId,
       reason: `already-${booking.paymentStatus.toLowerCase()}`,
+    });
+    return;
+  }
+
+  if (booking.paymentMethod !== "STRIPE") {
+    logReconciliation("skipped", {
+      source,
+      bookingId: booking.id,
+      stripeSessionId: booking.stripeSessionId,
+      reason: "invalid-payment-method",
     });
     return;
   }
@@ -222,6 +233,7 @@ export const reconcilePendingBookingBySessionId = async ({
       id: true,
       stripeSessionId: true,
       stripeChargeId: true,
+      paymentMethod: true,
       paymentStatus: true,
       barbershopId: true,
       barberId: true,
@@ -288,6 +300,7 @@ export const reconcilePendingBookingsForUser = async (
       id: true,
       stripeSessionId: true,
       stripeChargeId: true,
+      paymentMethod: true,
       paymentStatus: true,
       barbershopId: true,
       barberId: true,
@@ -363,6 +376,7 @@ export const reconcilePendingBookingsForBarbershop = async (
       id: true,
       stripeSessionId: true,
       stripeChargeId: true,
+      paymentMethod: true,
       paymentStatus: true,
       barbershopId: true,
       barberId: true,

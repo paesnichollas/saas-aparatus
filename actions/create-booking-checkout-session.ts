@@ -15,7 +15,10 @@ import {
   getBookingStartDate,
 } from "@/lib/booking-calculations";
 import { hasMinuteIntervalOverlap } from "@/lib/booking-interval";
-import { ACTIVE_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
+import {
+  ACTIVE_BOOKING_PAYMENT_WHERE,
+  resolveInitialPaymentState,
+} from "@/lib/booking-payment";
 import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import { returnValidationErrors } from "next-safe-action";
@@ -27,6 +30,7 @@ const inputSchema = z.object({
   barberId: z.uuid(),
   serviceIds: z.array(z.uuid()).min(1),
   startAt: z.date(),
+  paymentMethod: z.enum(["STRIPE", "IN_PERSON"]).optional(),
 });
 
 const hasInvalidServiceData = (service: {
@@ -96,7 +100,13 @@ export const createBookingCheckoutSession = criticalActionClient
   .inputSchema(inputSchema)
   .action(
     async ({
-      parsedInput: { barbershopId, barberId, serviceIds, startAt },
+      parsedInput: {
+        barbershopId,
+        barberId,
+        serviceIds,
+        startAt,
+        paymentMethod,
+      },
       ctx: { user },
     }) => {
       if (
@@ -132,6 +142,12 @@ export const createBookingCheckoutSession = criticalActionClient
           select: {
             id: true,
             name: true,
+            phones: true,
+            owner: {
+              select: {
+                phone: true,
+              },
+            },
             stripeEnabled: true,
             isActive: true,
           },
@@ -254,8 +270,21 @@ export const createBookingCheckoutSession = criticalActionClient
       }
 
       const primaryServiceId = uniqueServiceIds[0];
+      const ownerPhone = barbershop.owner?.phone?.trim() ?? null;
+      const primaryBarbershopPhone =
+        ownerPhone ??
+        barbershop.phones
+          .map((phone) => phone.trim())
+          .find((phone) => phone.length > 0) ?? null;
+      const requestedPaymentMethod =
+        paymentMethod ?? (barbershop.stripeEnabled ? "STRIPE" : "IN_PERSON");
+      const initialPaymentState = resolveInitialPaymentState({
+        stripeEnabled: barbershop.stripeEnabled,
+        requestedPaymentMethod,
+        allowStripeCheckout: true,
+      });
 
-      if (!barbershop.stripeEnabled) {
+      if (!initialPaymentState.requiresStripeCheckout) {
         const booking = await prisma.booking.create({
           data: {
             serviceId: primaryServiceId,
@@ -267,8 +296,8 @@ export const createBookingCheckoutSession = criticalActionClient
             userId: user.id,
             barberId: barber.id,
             barbershopId: barbershop.id,
-            paymentMethod: "IN_PERSON",
-            paymentStatus: "PAID",
+            paymentMethod: initialPaymentState.paymentMethod,
+            paymentStatus: initialPaymentState.paymentStatus,
             services: {
               createMany: {
                 data: uniqueServiceIds.map((serviceId) => ({
@@ -288,6 +317,17 @@ export const createBookingCheckoutSession = criticalActionClient
         return {
           kind: "created" as const,
           bookingId: booking.id,
+          receipt: {
+            bookingId: booking.id,
+            status: "confirmed" as const,
+            customerName: user.name,
+            barbershopName: barbershop.name,
+            barberName: barber.name,
+            barbershopPhone: primaryBarbershopPhone,
+            bookingStartAt: startAt.toISOString(),
+            serviceNames: services.map((service) => service.name),
+            totalPriceInCents,
+          },
         };
       }
 
@@ -311,7 +351,7 @@ export const createBookingCheckoutSession = criticalActionClient
         );
         returnValidationErrors(inputSchema, {
           _errors: [
-            "Configuração de URL da aplicacao inválida. Tente novamente em alguns instantes.",
+            "Configuração de URL da aplicação inválida. Tente novamente em alguns instantes.",
           ],
         });
       }
@@ -375,8 +415,10 @@ export const createBookingCheckoutSession = criticalActionClient
         });
       }
 
+      let pendingBooking: { id: string };
+
       try {
-        await prisma.booking.create({
+        pendingBooking = await prisma.booking.create({
           data: {
             stripeSessionId: checkoutSession.id,
             serviceId: primaryServiceId,
@@ -388,8 +430,8 @@ export const createBookingCheckoutSession = criticalActionClient
             userId: user.id,
             barberId: barber.id,
             barbershopId: barbershop.id,
-            paymentMethod: "STRIPE",
-            paymentStatus: "PENDING",
+            paymentMethod: initialPaymentState.paymentMethod,
+            paymentStatus: initialPaymentState.paymentStatus,
             services: {
               createMany: {
                 data: uniqueServiceIds.map((serviceId) => ({
@@ -433,9 +475,31 @@ export const createBookingCheckoutSession = criticalActionClient
         });
       }
 
+      if (!checkoutSession.url) {
+        try {
+          await stripe.checkout.sessions.expire(checkoutSession.id);
+        } catch (expireError) {
+          console.error(
+            "[createBookingCheckoutSession] Failed to expire Stripe session without checkout url.",
+            {
+              expireError,
+              checkoutSessionId: checkoutSession.id,
+            },
+          );
+        }
+
+        returnValidationErrors(inputSchema, {
+          _errors: [
+            "Não foi possível iniciar o pagamento agora. Tente novamente em alguns instantes.",
+          ],
+        });
+      }
+
       return {
         kind: "stripe" as const,
+        bookingId: pendingBooking.id,
         sessionId: checkoutSession.id,
+        checkoutUrl: checkoutSession.url,
       };
     },
   );

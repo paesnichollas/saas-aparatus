@@ -4,7 +4,12 @@ import { createBookingCheckoutSession } from "@/actions/create-booking-checkout-
 import { joinWaitlist } from "@/actions/join-waitlist";
 import { leaveWaitlist } from "@/actions/leave-waitlist";
 import { queryKeys } from "@/constants/query-keys";
-import { Barber, Barbershop, BarbershopService } from "@/generated/prisma/client";
+import {
+  Barber,
+  Barbershop,
+  BarbershopService,
+  PaymentMethod,
+} from "@/generated/prisma/client";
 import { useGetDateAvailableTimeSlots } from "@/hooks/data/use-get-date-availabe-time-slots";
 import { useGetWaitlistStatusForDay } from "@/hooks/data/use-get-waitlist-status-for-day";
 import { getBookingDateKey } from "@/lib/booking-time";
@@ -12,11 +17,12 @@ import {
   buildCompleteProfileUrl,
   isProfileIncompleteCode,
 } from "@/lib/profile-completion";
+import { buildBookingReceiptWhatsAppLink } from "@/lib/whatsapp";
 import { cn, formatCurrency } from "@/lib/utils";
 import { loadStripe } from "@stripe/stripe-js";
 import { useQueryClient } from "@tanstack/react-query";
 import { ptBR } from "date-fns/locale";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Loader2, MessageCircle } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useAction } from "next-safe-action/hooks";
 import { useMemo, useState } from "react";
@@ -39,6 +45,22 @@ interface BookingSheetProps {
   services: BarbershopService[];
 }
 
+interface CreatedBookingReceipt {
+  bookingId: string;
+  status: "confirmed";
+  customerName: string | null;
+  barbershopName: string;
+  barberName: string;
+  barbershopPhone: string | null;
+  bookingStartAt: string;
+  serviceNames: string[];
+  totalPriceInCents: number | null;
+}
+
+const getDefaultPaymentMethod = (stripeEnabled: boolean): PaymentMethod => {
+  return stripeEnabled ? "STRIPE" : "IN_PERSON";
+};
+
 const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
   const queryClient = useQueryClient();
   const pathname = usePathname();
@@ -50,6 +72,11 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
   const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(
+    () => getDefaultPaymentMethod(barbershop.stripeEnabled),
+  );
+  const [createdBookingReceipt, setCreatedBookingReceipt] =
+    useState<CreatedBookingReceipt | null>(null);
 
   const { executeAsync: executeCreateBooking, isPending: isCreatingBooking } =
     useAction(createBookingCheckoutSession);
@@ -150,6 +177,43 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
     setSelectedTime(undefined);
   };
 
+  const resetBookingForm = () => {
+    setCreatedBookingReceipt(null);
+    setSheetIsOpen(false);
+    setSelectedDate(undefined);
+    setSelectedTime(undefined);
+    setSelectedServiceIds([]);
+    setSelectedPaymentMethod(getDefaultPaymentMethod(barbershop.stripeEnabled));
+  };
+
+  const createdBookingReceiptLink =
+    createdBookingReceipt?.barbershopPhone && createdBookingReceipt.bookingStartAt
+      ? buildBookingReceiptWhatsAppLink({
+          phone: createdBookingReceipt.barbershopPhone,
+          customerName: createdBookingReceipt.customerName,
+          barberName: createdBookingReceipt.barberName,
+          bookingStartAt: new Date(createdBookingReceipt.bookingStartAt),
+          serviceNames: createdBookingReceipt.serviceNames,
+          totalPriceInCents: createdBookingReceipt.totalPriceInCents,
+        })
+      : null;
+
+  const handleSendBookingReceipt = () => {
+    if (!createdBookingReceiptLink) {
+      return;
+    }
+
+    window.open(createdBookingReceiptLink, "_blank", "noopener,noreferrer");
+  };
+
+  const handleSheetOpenChange = (open: boolean) => {
+    setSheetIsOpen(open);
+
+    if (!open) {
+      setCreatedBookingReceipt(null);
+    }
+  };
+
   const invalidateWaitlistStatus = async () => {
     await queryClient.invalidateQueries({
       queryKey: queryKeys.getWaitlistStatusForDay(
@@ -171,6 +235,7 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
       barberId: selectedBarberId,
       serviceId: selectedSingleServiceId,
       dateDay: selectedDateDay,
+      paymentMethod: selectedPaymentMethod,
     });
 
     if (result.validationErrors) {
@@ -226,6 +291,7 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
       barberId: selectedBarberId,
       serviceIds: selectedServiceIds,
       startAt,
+      paymentMethod: selectedPaymentMethod,
     });
 
     if (result.validationErrors) {
@@ -248,10 +314,7 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
 
     if (checkoutResult.kind === "created") {
       toast.success("Agendamento confirmado com sucesso.");
-      setSheetIsOpen(false);
-      setSelectedDate(undefined);
-      setSelectedTime(undefined);
-      setSelectedServiceIds([]);
+      setCreatedBookingReceipt(checkoutResult.receipt);
       return;
     }
 
@@ -268,14 +331,11 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
     await stripe.redirectToCheckout({
       sessionId: checkoutResult.sessionId,
     });
-    setSheetIsOpen(false);
-    setSelectedDate(undefined);
-    setSelectedTime(undefined);
-    setSelectedServiceIds([]);
+    resetBookingForm();
   };
 
   return (
-    <Sheet open={sheetIsOpen} onOpenChange={setSheetIsOpen}>
+    <Sheet open={sheetIsOpen} onOpenChange={handleSheetOpenChange}>
       <SheetTrigger asChild>
         <Button className="w-full rounded-full" data-testid="booking-open-sheet">
           Reservar
@@ -287,7 +347,48 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
           <SheetTitle>Fazer Agendamento</SheetTitle>
         </SheetHeader>
 
-        <div className="space-y-6 px-5 py-6">
+        {createdBookingReceipt ? (
+          <>
+            <div className="flex flex-col gap-3 px-5 py-6">
+              <div className="bg-primary/10 text-primary flex size-12 items-center justify-center rounded-full">
+                <Check className="size-5" />
+              </div>
+              <p className="text-lg font-semibold">Agendamento confirmado</p>
+              <p className="text-muted-foreground text-sm">
+                Seu agendamento foi confirmado com sucesso.
+              </p>
+            </div>
+
+            <SheetFooter className="border-border border-t px-5 py-6">
+              <div className="flex w-full gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 rounded-full"
+                  onClick={resetBookingForm}
+                  data-testid="booking-confirmed-close"
+                >
+                  Fechar
+                </Button>
+
+                {createdBookingReceiptLink ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 gap-2 rounded-full"
+                    onClick={handleSendBookingReceipt}
+                    data-testid="booking-send-receipt-whatsapp"
+                  >
+                    <MessageCircle className="size-4" />
+                    Enviar comprovante
+                  </Button>
+                ) : null}
+              </div>
+            </SheetFooter>
+          </>
+        ) : (
+          <>
+            <div className="space-y-6 px-5 py-6">
           <div className="space-y-3">
             <p className="text-sm font-semibold">1. Escolha o barbeiro</p>
             <div className="flex gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
@@ -373,9 +474,41 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
             </div>
           </div>
 
+          {/* Ativar para dar opção de pagamento */}
+
+          {/* <div className="space-y-3">
+            <p className="text-sm font-semibold">4. Forma de pagamento</p>
+            {barbershop.stripeEnabled ? (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant={selectedPaymentMethod === "STRIPE" ? "default" : "outline"}
+                  className="w-full"
+                  onClick={() => setSelectedPaymentMethod("STRIPE")}
+                  data-testid="booking-payment-method-stripe"
+                >
+                  Pagar Agora
+                </Button>
+                <Button
+                  type="button"
+                  variant={selectedPaymentMethod === "IN_PERSON" ? "default" : "outline"}
+                  className="w-full"
+                  onClick={() => setSelectedPaymentMethod("IN_PERSON")}
+                  data-testid="booking-payment-method-in-person"
+                >
+                  Pagar no atendimento
+                </Button>
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm">
+                Pagamento no atendimento.
+              </p>
+            )}
+          </div> */}
+
           {selectedDate && selectedBarberId && selectedServiceIds.length > 0 ? (
             <div className="space-y-3">
-              <p className="text-sm font-semibold">4. Escolha o horário</p>
+              <p className="text-sm font-semibold">5. Escolha o horário</p>
               {isLoadingTimeSlots ? (
                 <div className="text-muted-foreground flex items-center gap-2 text-sm">
                   <Loader2 className="size-4 animate-spin" />
@@ -473,22 +606,24 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
               totalPriceInCents={totalPriceInCents}
             />
           ) : null}
-        </div>
+            </div>
 
-        <SheetFooter className="px-5 pb-6">
-          <Button
-            className="w-full"
-            disabled={!canConfirmBooking || isCreatingBooking}
-            onClick={handleConfirmBooking}
-            data-testid="booking-confirm"
-          >
-            {isCreatingBooking ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              "Confirmar"
-            )}
-          </Button>
-        </SheetFooter>
+            <SheetFooter className="px-5 pb-6">
+              <Button
+                className="w-full"
+                disabled={!canConfirmBooking || isCreatingBooking}
+                onClick={handleConfirmBooking}
+                data-testid="booking-confirm"
+              >
+                {isCreatingBooking ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  "Confirmar"
+                )}
+              </Button>
+            </SheetFooter>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );

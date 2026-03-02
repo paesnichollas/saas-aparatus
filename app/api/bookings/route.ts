@@ -1,4 +1,4 @@
-import { createBooking } from "@/actions/create-booking";
+import { createBookingCheckoutSession } from "@/actions/create-booking-checkout-session";
 import { auth } from "@/lib/auth";
 import { parseBookingDateTime } from "@/lib/booking-time";
 import {
@@ -19,6 +19,7 @@ const requestSchema = z.object({
   serviceId: z.uuid(),
   barberId: z.uuid(),
   date: z.string().trim().min(1),
+  paymentMethod: z.enum(["STRIPE", "IN_PERSON"]).optional(),
 });
 
 const INVALID_REQUEST_MESSAGE = "Requisição inválida.";
@@ -52,7 +53,11 @@ const normalizeForMessageMatch = (value: string) => {
 
 const isUnauthorizedErrorMessage = (message: string) => {
   const normalizedMessage = normalizeForMessageMatch(message);
-  return normalizedMessage.includes("nao autorizado") || normalizedMessage.includes("login");
+  return (
+    normalizedMessage.includes("nao autorizado") ||
+    normalizedMessage.includes("não autorizado") ||
+    normalizedMessage.includes("login")
+  );
 };
 
 const isProfileIncompleteErrorMessage = (message: string) => {
@@ -126,11 +131,12 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const createBookingResult = await createBooking({
+  const createBookingResult = await createBookingCheckoutSession({
     barbershopId: parsedRequest.data.barbershopId,
-    serviceId: parsedRequest.data.serviceId,
     barberId: parsedRequest.data.barberId,
-    date: bookingDate,
+    serviceIds: [parsedRequest.data.serviceId],
+    startAt: bookingDate,
+    paymentMethod: parsedRequest.data.paymentMethod,
   });
 
   const validationMessage = getValidationErrorMessage(
@@ -175,9 +181,22 @@ export const POST = async (request: Request) => {
     );
   }
 
+  if (createBookingResult.data.kind === "created") {
+    return NextResponse.json(
+      {
+        bookingId: createBookingResult.data.bookingId,
+        requiresCheckout: false,
+      },
+      { status: 201 },
+    );
+  }
+
   return NextResponse.json(
     {
-      bookingId: createBookingResult.data.id,
+      bookingId: createBookingResult.data.bookingId,
+      requiresCheckout: true,
+      sessionId: createBookingResult.data.sessionId,
+      checkoutUrl: createBookingResult.data.checkoutUrl,
     },
     { status: 201 },
   );

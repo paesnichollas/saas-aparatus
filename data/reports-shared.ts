@@ -1,5 +1,5 @@
 import type { Prisma, UserRole } from "@/generated/prisma/client";
-import { CONFIRMED_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
+import { PAID_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
 import { getBookingStartDate } from "@/lib/booking-calculations";
 import {
   getBookingCurrentMonth,
@@ -195,7 +195,7 @@ export const buildServiceDateRangeWhere = ({
 export const buildReportRevenueEligibilityWhere = (): Prisma.BookingWhereInput => {
   return {
     cancelledAt: null,
-    AND: [CONFIRMED_BOOKING_PAYMENT_WHERE],
+    AND: [PAID_BOOKING_PAYMENT_WHERE],
   };
 };
 

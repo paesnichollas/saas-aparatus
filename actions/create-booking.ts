@@ -15,7 +15,10 @@ import {
   getBookingStartDate,
 } from "@/lib/booking-calculations";
 import { hasMinuteIntervalOverlap } from "@/lib/booking-interval";
-import { ACTIVE_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
+import {
+  ACTIVE_BOOKING_PAYMENT_WHERE,
+  resolveInitialPaymentState,
+} from "@/lib/booking-payment";
 import { prisma } from "@/lib/prisma";
 import { returnValidationErrors } from "next-safe-action";
 import { z } from "zod";
@@ -172,6 +175,12 @@ export const createBooking = criticalActionClient
       });
     }
 
+    const initialPaymentState = resolveInitialPaymentState({
+      stripeEnabled: false,
+      requestedPaymentMethod: "IN_PERSON",
+      allowStripeCheckout: false,
+    });
+
     const booking = await prisma.booking.create({
       data: {
         serviceId,
@@ -185,8 +194,8 @@ export const createBooking = criticalActionClient
         userId: user.id,
         barberId: barber.id,
         barbershopId,
-        paymentMethod: "IN_PERSON",
-        paymentStatus: "PAID",
+        paymentMethod: initialPaymentState.paymentMethod,
+        paymentStatus: initialPaymentState.paymentStatus,
         services: {
           create: {
             serviceId,

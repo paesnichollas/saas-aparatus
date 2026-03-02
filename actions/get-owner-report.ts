@@ -2,7 +2,7 @@
 
 import { type Prisma } from "@/generated/prisma/client";
 import { protectedActionClient } from "@/lib/action-client";
-import { CONFIRMED_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
+import { PAID_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/rbac";
 import { startOfDay, subDays } from "date-fns";
@@ -172,7 +172,7 @@ export const getOwnerReport = protectedActionClient
             lte: dateWindow.to,
           },
           cancelledAt: null,
-          ...CONFIRMED_BOOKING_PAYMENT_WHERE,
+          ...PAID_BOOKING_PAYMENT_WHERE,
         },
         _count: {
           _all: true,

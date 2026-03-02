@@ -70,6 +70,7 @@ const confirmCompletedCheckoutSession = async (
     },
     select: {
       id: true,
+      paymentMethod: true,
       paymentStatus: true,
       stripeChargeId: true,
     },
@@ -81,6 +82,18 @@ const confirmCompletedCheckoutSession = async (
     });
   }
 
+
+  if (existingBooking.paymentMethod !== "STRIPE") {
+    return buildErrorResponse(
+      409,
+      "Agendamento vinculado à sessão Stripe possui método de pagamento inválido.",
+      {
+        sessionId: session.id,
+        bookingId: existingBooking.id,
+        paymentMethod: existingBooking.paymentMethod,
+      },
+    );
+  }
   if (existingBooking.paymentStatus === "PAID") {
     if (
       chargeId &&
@@ -142,6 +155,7 @@ const failCheckoutSessionBooking = async (
     },
     select: {
       id: true,
+      paymentMethod: true,
       paymentStatus: true,
       barbershopId: true,
       barberId: true,
@@ -159,6 +173,18 @@ const failCheckoutSessionBooking = async (
     });
   }
 
+
+  if (existingBooking.paymentMethod !== "STRIPE") {
+    return buildErrorResponse(
+      409,
+      "Agendamento vinculado à sessão Stripe possui método de pagamento inválido.",
+      {
+        sessionId: session.id,
+        bookingId: existingBooking.id,
+        paymentMethod: existingBooking.paymentMethod,
+      },
+    );
+  }
   if (existingBooking.paymentStatus === "PAID") {
     console.info("[stripeWebhook] Ignoring failed event for already paid booking.", {
       eventId,
@@ -284,3 +310,4 @@ export const POST = async (request: Request) => {
 
   return NextResponse.json({ received: true });
 };
+
