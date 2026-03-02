@@ -5,7 +5,7 @@ export const ADMIN_CREATE_BARBERSHOP_DEFAULTS = {
   imageUrl: null as string | null,
   logoUrl: null as string | null,
   exclusiveBarber: false,
-  stripeEnabled: true,
+  stripeEnabled: false,
   plan: "BASIC" as const,
   whatsappProvider: "NONE" as const,
   whatsappFrom: null as string | null,

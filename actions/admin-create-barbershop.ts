@@ -22,7 +22,7 @@ const inputSchema = z.object({
   phones: z.array(z.string().trim().min(8).max(30)).max(6).optional(),
   slug: z.string().trim().min(3).max(80).regex(slugRegex).optional(),
   exclusiveBarber: z.boolean().optional(),
-  stripeEnabled: z.boolean().optional(),
+  stripeEnabled: z.boolean().default(false),
   ownerId: z.union([z.string().trim().min(1, "OwnerID inválido."), z.null()]).optional(),
   plan: z.enum(["BASIC", "PRO"]).optional(),
   whatsappProvider: z.enum(["NONE", "TWILIO"]).optional(),

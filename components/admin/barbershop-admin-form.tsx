@@ -129,7 +129,7 @@ const BarbershopAdminForm = ({ mode, barbershop }: BarbershopAdminFormProps) => 
   const [exclusiveBarber, setExclusiveBarber] = useState(
     barbershop?.exclusiveBarber ?? false,
   );
-  const [stripeEnabled, setStripeEnabled] = useState(barbershop?.stripeEnabled ?? true);
+  const [stripeEnabled, setStripeEnabled] = useState(barbershop?.stripeEnabled ?? false);
   const [ownerIdInput, setOwnerIdInput] = useState(barbershop?.ownerId ?? "");
   const [plan, setPlan] = useState<"BASIC" | "PRO">(barbershop?.plan ?? "BASIC");
   const [whatsappProvider, setWhatsappProvider] = useState<"NONE" | "TWILIO">(
@@ -382,7 +382,6 @@ const BarbershopAdminForm = ({ mode, barbershop }: BarbershopAdminFormProps) => 
         previewAlt={name.trim() || "Preview da barbearia"}
         barbershopId={barbershop?.id}
         disabled={isCreating || isUpdating}
-        helperText="A imagem é enviada via UploadThing é salva como URL."
         emptyText="Sem imagem para preview."
         onUploadingChange={setIsUploadingImage}
       />
@@ -394,7 +393,6 @@ const BarbershopAdminForm = ({ mode, barbershop }: BarbershopAdminFormProps) => 
         previewAlt={name.trim() || "Preview da logo"}
         barbershopId={barbershop?.id}
         disabled={isCreating || isUpdating}
-        helperText="A logo é enviada via UploadThing é salva como URL."
         emptyText="Sem logo para preview."
         onUploadingChange={setIsUploadingLogo}
       />
@@ -417,7 +415,9 @@ const BarbershopAdminForm = ({ mode, barbershop }: BarbershopAdminFormProps) => 
 
       {isEditMode && barbershop ? (
         <div className="space-y-2">
-          <Label htmlFor="admin-barbershop-public-slug">Public slug (readonly)</Label>
+          <Label htmlFor="admin-barbershop-public-slug">
+            Slug público (readonly)
+          </Label>
           <Input
             id="admin-barbershop-public-slug"
             value={barbershop.publicSlug}
