@@ -4,7 +4,7 @@ import { loginWithPhoneApi } from "../fixtures/auth";
 import { assignOwnerByPhone } from "../fixtures/db";
 import { TEST_DATES, TEST_IDS } from "../fixtures/test-data";
 
-test("demo: customer booking appears in owner agenda and cancellation reflects back", async ({
+test("demo: owner uses today agenda and admin panel while cancellation reflects back", async ({
   browser,
 }) => {
   const customerContext = await browser.newContext();
@@ -43,7 +43,7 @@ test("demo: customer booking appears in owner agenda and cancellation reflects b
     bookingId = createResponseJson.bookingId;
   });
 
-  await test.step("owner sees booking in agenda", async () => {
+  await test.step("owner sees only today in /bookings and can open admin panel", async () => {
     await loginWithPhoneApi({
       page: ownerPage,
       name: "Demo Owner",
@@ -57,6 +57,14 @@ test("demo: customer booking appears in owner agenda and cancellation reflects b
     });
 
     await ownerPage.goto("/bookings");
+    await expect(ownerPage.getByTestId(`owner-booking-${bookingId}`)).toHaveCount(0);
+    await expect(
+      ownerPage.getByRole("link", {
+        name: /Ver outros dias no Painel administrativo/i,
+      }),
+    ).toBeVisible();
+
+    await ownerPage.goto("/owner");
     await expect(ownerPage.getByTestId(`owner-booking-${bookingId}`).first()).toBeVisible();
   });
 
@@ -71,11 +79,11 @@ test("demo: customer booking appears in owner agenda and cancellation reflects b
     ).toBeVisible();
   });
 
-  await test.step("owner sees canceled status after refresh", async () => {
+  await test.step("owner sees canceled status after refresh in admin panel", async () => {
     await expect
       .poll(
         async () => {
-          await ownerPage.goto("/bookings");
+          await ownerPage.goto("/owner");
           const bookingCard = ownerPage.getByTestId(`owner-booking-${bookingId}`);
 
           if ((await bookingCard.count()) === 0) {

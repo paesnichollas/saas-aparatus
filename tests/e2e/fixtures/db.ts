@@ -1,4 +1,8 @@
-﻿import type { UserRole } from "@/generated/prisma/client";
+﻿import type {
+  PaymentMethod,
+  PaymentStatus,
+  UserRole,
+} from "@/generated/prisma/client";
 import { parseBookingDateOnly } from "@/lib/booking-time";
 import { prisma } from "@/lib/prisma";
 import { TEST_IDS } from "./test-data";
@@ -119,20 +123,56 @@ export const createFinishedBookingForUser = async ({
   startAt: Date;
   endAt: Date;
 }) => {
+  return createTestBookingForUser({
+    userId,
+    startAt,
+    endAt,
+    paymentMethod: "IN_PERSON",
+    paymentStatus: "PAID",
+  });
+};
+
+interface CreateTestBookingForUserInput {
+  userId: string;
+  startAt: Date;
+  endAt?: Date;
+  paymentMethod?: PaymentMethod;
+  paymentStatus?: PaymentStatus;
+  stripeChargeId?: string | null;
+  cancelledAt?: Date | null;
+}
+
+export const createTestBookingForUser = async ({
+  userId,
+  startAt,
+  endAt,
+  paymentMethod = "IN_PERSON",
+  paymentStatus = "PENDING",
+  stripeChargeId = null,
+  cancelledAt = null,
+}: CreateTestBookingForUserInput) => {
+  const resolvedEndAt = endAt ?? new Date(startAt.getTime() + 30 * 60_000);
+  const totalDurationMinutes = Math.max(
+    1,
+    Math.round((resolvedEndAt.getTime() - startAt.getTime()) / 60_000),
+  );
+
   const booking = await prisma.booking.create({
     data: {
       barbershopId: TEST_IDS.barbershopPublic,
       barberId: TEST_IDS.barberPublicPrimary,
       serviceId: TEST_IDS.serviceCut,
       userId,
-      paymentMethod: "IN_PERSON",
-      paymentStatus: "PAID",
-      totalDurationMinutes: Math.round((endAt.getTime() - startAt.getTime()) / 60_000),
+      paymentMethod,
+      paymentStatus,
+      stripeChargeId,
+      totalDurationMinutes,
       totalPriceInCents: 5000,
       date: startAt,
       startAt,
-      endAt,
-      paymentConfirmedAt: endAt,
+      endAt: resolvedEndAt,
+      paymentConfirmedAt: paymentStatus === "PAID" ? resolvedEndAt : null,
+      cancelledAt,
       services: {
         create: {
           serviceId: TEST_IDS.serviceCut,

@@ -1,11 +1,13 @@
 import { type PaymentMethod, type PaymentStatus } from "@/generated/prisma/client";
 import { getBookingStartDate } from "@/lib/booking-calculations";
+import { canOwnerMarkBookingAsPaid } from "@/lib/booking-payment";
 import {
   getBookingDisplayStatus,
   getBookingDisplayStatusLabel,
   getBookingDisplayStatusVariant,
 } from "@/lib/booking-status";
 import { formatPhoneBRDisplay } from "@/lib/phone";
+import { buildWhatsAppDeepLink } from "@/lib/whatsapp";
 import { formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -13,6 +15,8 @@ import { CalendarDays, Phone, Scissors, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import OwnerMarkBookingPaidButton from "./owner-mark-booking-paid-button";
+import OwnerBookingReminderButton from "./owner-booking-reminder-button";
 
 type OwnerBookingListItem = {
   id: string;
@@ -76,8 +80,52 @@ const getBookingServiceNames = (booking: OwnerBookingListItem) => {
   return ["Serviço não informado"];
 };
 
+const getPaymentStatusLabel = (paymentStatus: PaymentStatus) => {
+  if (paymentStatus === "PAID") {
+    return "Pago";
+  }
+
+  return "Não pago";
+};
+
+const getBookingTotalReminderLabel = (totalPriceInCents: number | null) => {
+  if (typeof totalPriceInCents === "number") {
+    return formatCurrency(totalPriceInCents);
+  }
+
+  return "valor indisponível";
+};
+
+const getOwnerReminderMessage = ({
+  bookingDateLabel,
+  bookingTimeLabel,
+  serviceNamesLabel,
+  bookingTotalLabel,
+}: {
+  bookingDateLabel: string;
+  bookingTimeLabel: string;
+  serviceNamesLabel: string;
+  bookingTotalLabel: string;
+}) => {
+  return [
+    "Lembrete de Agendamento",
+    "",
+    `- Data: ${bookingDateLabel}`,
+    `- Horário: ${bookingTimeLabel}`,
+    `- Serviço: ${serviceNamesLabel}`,
+    `- Valor: ${bookingTotalLabel}`,
+    "",
+    "Posso confirmar seu atendimento?",
+  ].join("\n");
+};
+
 const OwnerBookingCard = ({ booking }: OwnerBookingCardProps) => {
   const bookingStartAt = getBookingStartDate(booking);
+  const bookingDateTimeLabel = format(bookingStartAt, "dd/MM/yyyy HH:mm", {
+    locale: ptBR,
+  });
+  const bookingDateLabel = format(bookingStartAt, "dd/MM/yyyy", { locale: ptBR });
+  const bookingTimeLabel = format(bookingStartAt, "HH:mm", { locale: ptBR });
   const displayStatus = getBookingDisplayStatus({
     date: bookingStartAt,
     cancelledAt: booking.cancelledAt,
@@ -88,6 +136,26 @@ const OwnerBookingCard = ({ booking }: OwnerBookingCardProps) => {
   const bookingTotalLabel = getBookingTotalLabel(booking.totalPriceInCents);
   const serviceNames = getBookingServiceNames(booking);
   const bookingUserPhone = formatPhoneBRDisplay(booking.user.phone?.trim());
+  const canMarkAsPaid = canOwnerMarkBookingAsPaid(booking);
+  const paymentStatusLabel = getPaymentStatusLabel(booking.paymentStatus);
+  const paymentStatusVariant =
+    booking.paymentStatus === "PAID" ? "default" : "destructive";
+  const bookingServiceNamesLabel = serviceNames.join(", ");
+  const bookingTotalReminderLabel = getBookingTotalReminderLabel(
+    booking.totalPriceInCents,
+  );
+  const reminderMessage = getOwnerReminderMessage({
+    bookingDateLabel,
+    bookingTimeLabel,
+    serviceNamesLabel: bookingServiceNamesLabel,
+    bookingTotalLabel: bookingTotalReminderLabel,
+  });
+  const reminderLink = booking.user.phone
+    ? buildWhatsAppDeepLink({
+        phone: booking.user.phone,
+        message: reminderMessage,
+      })
+    : null;
 
   return (
     <Card data-testid={`owner-booking-${booking.id}`}>
@@ -96,11 +164,10 @@ const OwnerBookingCard = ({ booking }: OwnerBookingCardProps) => {
           <Badge variant={getBookingDisplayStatusVariant(displayStatus)}>
             {getBookingDisplayStatusLabel(displayStatus)}
           </Badge>
+          <Badge variant={paymentStatusVariant}>{paymentStatusLabel}</Badge>
           <Badge variant="secondary" className="gap-1">
             <CalendarDays className="size-3" />
-            {format(bookingStartAt, "dd/MM/yyyy HH:mm", {
-              locale: ptBR,
-            })}
+            {bookingDateTimeLabel}
           </Badge>
         </div>
 
@@ -122,6 +189,14 @@ const OwnerBookingCard = ({ booking }: OwnerBookingCardProps) => {
               <Phone className="size-4" />
               {bookingUserPhone}
             </p>
+          ) : null}
+          {canMarkAsPaid || reminderLink ? (
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              {reminderLink ? <OwnerBookingReminderButton url={reminderLink} /> : null}
+              {canMarkAsPaid ? (
+                <OwnerMarkBookingPaidButton bookingId={booking.id} />
+              ) : null}
+            </div>
           ) : null}
         </div>
       </CardContent>

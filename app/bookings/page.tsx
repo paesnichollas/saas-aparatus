@@ -1,6 +1,7 @@
 import Header from "@/components/header";
 import Footer from "@/components/footer";
 import BookingItem from "@/components/booking-item";
+import OwnerCreateBookingSheet from "@/components/bookings/owner-create-booking-sheet";
 import OwnerBookingsList from "@/components/bookings/owner-bookings-list";
 import WaitlistFulfillmentBanner from "@/components/bookings/waitlist-fulfillment-banner";
 import WaitlistList from "@/components/bookings/waitlist-list";
@@ -11,7 +12,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getOwnerBarbershopBookings, getUserBookings } from "@/data/bookings";
+import { Button } from "@/components/ui/button";
+import { getOwnerTodayBarbershopBookingGroups, getUserBookings } from "@/data/bookings";
+import { getBarbersByBarbershopId } from "@/data/barbers";
+import { getOwnerBarbershopClientsByBookingHistory } from "@/data/owner/owner-barbershop-clients";
+import { getServicesByBarbershopId } from "@/data/services";
 import {
   getUserUnseenFulfilledWaitlistEntries,
   getUserWaitlistEntries,
@@ -22,6 +27,7 @@ import {
   PageSectionContent,
   PageSectionTitle,
 } from "@/components/ui/page";
+import Link from "next/link";
 
 interface BookingsPageProps {
   searchParams: Promise<{
@@ -33,9 +39,25 @@ const BookingsPage = async ({ searchParams }: BookingsPageProps) => {
   const user = await requireAuthenticatedUser();
 
   if (user.role === "OWNER") {
-    const ownerBookings = user.barbershopId
-      ? await getOwnerBarbershopBookings(user.barbershopId)
-      : [];
+    let ownerBookingGroups: Awaited<
+      ReturnType<typeof getOwnerTodayBarbershopBookingGroups>
+    > = [];
+    let barbers: Awaited<ReturnType<typeof getBarbersByBarbershopId>> = [];
+    let services: Awaited<ReturnType<typeof getServicesByBarbershopId>> = [];
+    let clients: Awaited<
+      ReturnType<typeof getOwnerBarbershopClientsByBookingHistory>
+    > = [];
+
+    if (user.barbershopId) {
+      [ownerBookingGroups, barbers, services, clients] = await Promise.all([
+        getOwnerTodayBarbershopBookingGroups(user.barbershopId),
+        getBarbersByBarbershopId(user.barbershopId),
+        getServicesByBarbershopId(user.barbershopId),
+        getOwnerBarbershopClientsByBookingHistory(user.barbershopId),
+      ]);
+    }
+    const barbershopName =
+      ownerBookingGroups[0]?.bookings[0]?.barbershop.name ?? "Barbearia";
 
     return (
       <div>
@@ -62,10 +84,50 @@ const BookingsPage = async ({ searchParams }: BookingsPageProps) => {
             </PageSectionContent>
           ) : (
             <PageSectionContent>
-              <OwnerBookingsList
-                bookings={ownerBookings}
-                emptyMessage="Nenhum agendamento encontrado para sua barbearia."
-              />
+              <div className="flex justify-end">
+                <OwnerCreateBookingSheet
+                  barbershopId={user.barbershopId}
+                  barbershopName={barbershopName}
+                  barbers={barbers.map((barber) => ({
+                    id: barber.id,
+                    name: barber.name,
+                  }))}
+                  services={services.map((service) => ({
+                    id: service.id,
+                    name: service.name,
+                    priceInCents: service.priceInCents,
+                    durationInMinutes: service.durationInMinutes,
+                  }))}
+                  clients={clients}
+                />
+              </div>
+
+              {ownerBookingGroups.length > 0 ? (
+                <div className="space-y-4">
+                  {ownerBookingGroups.map((group) => (
+                    <div
+                      key={group.status}
+                      className="space-y-3"
+                      data-testid={`owner-bookings-group-${group.status}`}
+                    >
+                      <PageSectionTitle>{group.label}</PageSectionTitle>
+                      <OwnerBookingsList
+                        bookings={group.bookings}
+                        emptyMessage="Nenhum agendamento para este status."
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <OwnerBookingsList
+                  bookings={[]}
+                  emptyMessage="Nenhum agendamento para hoje."
+                />
+              )}
+
+              <Button asChild variant="outline" className="w-fit">
+                <Link href="/owner">Ver outros dias</Link>
+              </Button>
             </PageSectionContent>
           )}
         </PageContainer>

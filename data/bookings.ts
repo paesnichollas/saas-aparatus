@@ -1,6 +1,13 @@
 import { Prisma } from "@/generated/prisma/client";
 import { auth } from "@/lib/auth";
+import { getBookingStartDate } from "@/lib/booking-calculations";
 import { CONFIRMED_BOOKING_PAYMENT_WHERE } from "@/lib/booking-payment";
+import {
+  getBookingDisplayStatus,
+  type BookingDisplayStatus,
+  getBookingDisplayStatusLabel,
+} from "@/lib/booking-status";
+import { getBookingDayBounds } from "@/lib/booking-time";
 import { prisma } from "@/lib/prisma";
 import {
   reconcilePendingBookingBySessionId,
@@ -11,6 +18,7 @@ import { headers } from "next/headers";
 
 const BOOKING_BASE_SELECT = {
   id: true,
+  userId: true,
   stripeChargeId: true,
   paymentMethod: true,
   paymentStatus: true,
@@ -31,6 +39,11 @@ const USER_BOOKING_SELECT = {
       address: true,
       imageUrl: true,
       phones: true,
+      owner: {
+        select: {
+          phone: true,
+        },
+      },
     },
   },
   barber: {
@@ -72,6 +85,11 @@ const USER_BOOKING_SELECT = {
 
 const OWNER_BOOKING_SELECT = {
   ...BOOKING_BASE_SELECT,
+  barbershop: {
+    select: {
+      name: true,
+    },
+  },
   user: {
     select: {
       id: true,
@@ -112,9 +130,23 @@ export type OwnerBookingWithRelations = Prisma.BookingGetPayload<{
   select: typeof OWNER_BOOKING_SELECT;
 }>;
 
+export interface OwnerBookingStatusGroup {
+  status: BookingDisplayStatus;
+  label: string;
+  bookings: OwnerBookingWithRelations[];
+}
+
 interface GetUserBookingsOptions {
   stripeSessionId?: string;
 }
+
+const OWNER_BOOKING_STATUS_ORDER: BookingDisplayStatus[] = [
+  "pending",
+  "confirmed",
+  "finished",
+  "cancelled",
+  "failed",
+];
 
 const getAuthenticatedUser = async () => {
   const session = await auth.api.getSession({
@@ -205,6 +237,20 @@ export const getUserBookings = async (options?: GetUserBookingsOptions) => {
   return { confirmedBookings, finishedBookings };
 };
 
+const reconcileOwnerBookings = async (barbershopId: string) => {
+  try {
+    await reconcilePendingBookingsForBarbershop(barbershopId);
+  } catch (error) {
+    console.error(
+      "[getOwnerBarbershopBookings] Failed to reconcile pending bookings for barbershop.",
+      {
+        error,
+        barbershopId,
+      },
+    );
+  }
+};
+
 export const getOwnerBarbershopBookings = async (
   barbershopId: string,
 ): Promise<OwnerBookingWithRelations[]> => {
@@ -214,17 +260,7 @@ export const getOwnerBarbershopBookings = async (
     return [];
   }
 
-  try {
-    await reconcilePendingBookingsForBarbershop(normalizedBarbershopId);
-  } catch (error) {
-    console.error(
-      "[getOwnerBarbershopBookings] Failed to reconcile pending bookings for barbershop.",
-      {
-        error,
-        barbershopId: normalizedBarbershopId,
-      },
-    );
-  }
+  await reconcileOwnerBookings(normalizedBarbershopId);
 
   return prisma.booking.findMany({
     where: {
@@ -234,5 +270,63 @@ export const getOwnerBarbershopBookings = async (
     orderBy: {
       date: "desc",
     },
+  });
+};
+
+export const getOwnerTodayBarbershopBookingGroups = async (
+  barbershopId: string,
+): Promise<OwnerBookingStatusGroup[]> => {
+  const normalizedBarbershopId = barbershopId.trim();
+
+  if (!normalizedBarbershopId) {
+    return [];
+  }
+
+  await reconcileOwnerBookings(normalizedBarbershopId);
+
+  const { start, endExclusive } = getBookingDayBounds(new Date());
+  const bookings = await prisma.booking.findMany({
+    where: {
+      barbershopId: normalizedBarbershopId,
+      date: {
+        gte: start,
+        lt: endExclusive,
+      },
+    },
+    select: OWNER_BOOKING_SELECT,
+    orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+  });
+
+  const groupedBookings = new Map<BookingDisplayStatus, OwnerBookingWithRelations[]>();
+
+  for (const booking of bookings) {
+    const bookingStartAt = getBookingStartDate(booking);
+    const status = getBookingDisplayStatus({
+      date: bookingStartAt,
+      cancelledAt: booking.cancelledAt,
+      paymentMethod: booking.paymentMethod,
+      paymentStatus: booking.paymentStatus,
+      stripeChargeId: booking.stripeChargeId,
+    });
+    const existingGroup = groupedBookings.get(status);
+
+    if (existingGroup) {
+      existingGroup.push(booking);
+      continue;
+    }
+
+    groupedBookings.set(status, [booking]);
+  }
+
+  return OWNER_BOOKING_STATUS_ORDER.map((status) => {
+    const bookingsByStatus = groupedBookings.get(status) ?? [];
+
+    return {
+      status,
+      label: getBookingDisplayStatusLabel(status),
+      bookings: bookingsByStatus,
+    };
+  }).filter((group) => {
+    return group.bookings.length > 0;
   });
 };
