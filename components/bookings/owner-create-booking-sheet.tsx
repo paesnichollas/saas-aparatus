@@ -134,6 +134,37 @@ const toDate = (value: Date | string) => {
   return new Date(value);
 };
 
+const getFirstValidationError = (field: unknown): string | undefined => {
+  if (!field) {
+    return undefined;
+  }
+
+  if (Array.isArray(field)) {
+    const fieldAsArray = field as Array<unknown> & { _errors?: string[] };
+    const arrayError = fieldAsArray._errors?.[0];
+
+    if (arrayError) {
+      return arrayError;
+    }
+
+    const indexedError = fieldAsArray.find((item) => {
+      if (!item || typeof item !== "object") {
+        return false;
+      }
+
+      return Boolean((item as { _errors?: string[] })._errors?.length);
+    }) as { _errors?: string[] } | undefined;
+
+    return indexedError?._errors?.[0];
+  }
+
+  if (typeof field === "object") {
+    return (field as { _errors?: string[] })._errors?.[0];
+  }
+
+  return undefined;
+};
+
 const OwnerCreateBookingSheet = ({
   barbershopId,
   barbershopName,
@@ -151,14 +182,17 @@ const OwnerCreateBookingSheet = ({
     barbers[0]?.id,
   );
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [selectedTime, setSelectedTime] = useState<string | undefined>(undefined);
-  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
-  const [createdBooking, setCreatedBooking] = useState<CreatedOwnerBooking | null>(
-    null,
+  const [selectedTime, setSelectedTime] = useState<string | undefined>(
+    undefined,
   );
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [createdBooking, setCreatedBooking] =
+    useState<CreatedOwnerBooking | null>(null);
 
-  const { executeAsync: executeCreateOwnerBooking, isPending: isCreatingBooking } =
-    useAction(createOwnerBooking);
+  const {
+    executeAsync: executeCreateOwnerBooking,
+    isPending: isCreatingBooking,
+  } = useAction(createOwnerBooking);
 
   const { data: availableTimeSlots, isPending: isLoadingTimeSlots } =
     useGetDateAvailableTimeSlots({
@@ -352,10 +386,10 @@ const OwnerCreateBookingSheet = ({
 
       return toast.error(
         result.validationErrors._errors?.[0] ??
-          result.validationErrors.clientUserId?._errors?.[0] ??
-          result.validationErrors.barberId?._errors?.[0] ??
-          result.validationErrors.serviceIds?._errors?.[0] ??
-          result.validationErrors.date?._errors?.[0] ??
+          getFirstValidationError(result.validationErrors.clientUserId) ??
+          getFirstValidationError(result.validationErrors.barberId) ??
+          getFirstValidationError(result.validationErrors.serviceIds) ??
+          getFirstValidationError(result.validationErrors.date) ??
           "Não foi possível criar o agendamento.",
       );
     }
@@ -403,7 +437,10 @@ const OwnerCreateBookingSheet = ({
   return (
     <Sheet open={sheetIsOpen} onOpenChange={handleSheetOpenChange}>
       <SheetTrigger asChild>
-        <Button className="gap-2 rounded-full" data-testid="owner-create-booking-open">
+        <Button
+          className="gap-2 rounded-full"
+          data-testid="owner-create-booking-open"
+        >
           <Plus className="size-4" />
           Criar agendamento
         </Button>
@@ -472,7 +509,9 @@ const OwnerCreateBookingSheet = ({
                       <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
                       <Input
                         value={clientSearch}
-                        onChange={(event) => setClientSearch(event.target.value)}
+                        onChange={(event) =>
+                          setClientSearch(event.target.value)
+                        }
                         placeholder="Buscar por nome, email ou telefone"
                         className="pl-9"
                         data-testid="owner-create-booking-client-search"
@@ -494,12 +533,16 @@ const OwnerCreateBookingSheet = ({
                               type="button"
                               className={cn(
                                 "hover:bg-muted/60 w-full rounded-lg px-3 py-2 text-left transition-colors",
-                                isSelected ? "bg-primary/10 text-primary" : undefined,
+                                isSelected
+                                  ? "bg-primary/10 text-primary"
+                                  : undefined,
                               )}
                               onClick={() => setSelectedClientUserId(client.id)}
                               data-testid={`owner-create-booking-client-${client.id}`}
                             >
-                              <p className="text-sm font-medium">{client.name}</p>
+                              <p className="text-sm font-medium">
+                                {client.name}
+                              </p>
                               <p className="text-muted-foreground text-xs">
                                 {getClientDescription(client)}
                               </p>
@@ -525,7 +568,9 @@ const OwnerCreateBookingSheet = ({
                       <Button
                         key={barber.id}
                         type="button"
-                        variant={selectedBarberId === barber.id ? "default" : "outline"}
+                        variant={
+                          selectedBarberId === barber.id ? "default" : "outline"
+                        }
                         className="rounded-full"
                         onClick={() => handleBarberSelect(barber.id)}
                         data-testid={`owner-create-booking-barber-${barber.id}`}
@@ -565,7 +610,9 @@ const OwnerCreateBookingSheet = ({
               </div>
 
               <div className="space-y-3">
-                <p className="text-sm font-semibold">4. Selecione os serviços</p>
+                <p className="text-sm font-semibold">
+                  4. Selecione os serviços
+                </p>
 
                 {services.length === 0 ? (
                   <p className="text-muted-foreground text-sm">
@@ -574,7 +621,9 @@ const OwnerCreateBookingSheet = ({
                 ) : (
                   <div className="space-y-2">
                     {services.map((service) => {
-                      const isSelected = selectedServiceIds.includes(service.id);
+                      const isSelected = selectedServiceIds.includes(
+                        service.id,
+                      );
 
                       return (
                         <button
@@ -582,13 +631,17 @@ const OwnerCreateBookingSheet = ({
                           type="button"
                           className={cn(
                             "border-border bg-card flex w-full items-center justify-between rounded-xl border p-3 text-left transition-colors",
-                            isSelected ? "border-primary bg-primary/5" : undefined,
+                            isSelected
+                              ? "border-primary bg-primary/5"
+                              : undefined,
                           )}
                           onClick={() => handleServiceToggle(service.id)}
                           data-testid={`owner-create-booking-service-${service.id}`}
                         >
                           <div>
-                            <p className="text-sm font-semibold">{service.name}</p>
+                            <p className="text-sm font-semibold">
+                              {service.name}
+                            </p>
                             <p className="text-muted-foreground text-xs">
                               {service.durationInMinutes} min
                             </p>
@@ -603,9 +656,13 @@ const OwnerCreateBookingSheet = ({
                 )}
               </div>
 
-              {selectedDate && selectedBarberId && selectedServiceIds.length > 0 ? (
+              {selectedDate &&
+              selectedBarberId &&
+              selectedServiceIds.length > 0 ? (
                 <div className="space-y-3">
-                  <p className="text-sm font-semibold">5. Selecione o horário</p>
+                  <p className="text-sm font-semibold">
+                    5. Selecione o horário
+                  </p>
 
                   {isLoadingTimeSlots ? (
                     <div className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -618,7 +675,9 @@ const OwnerCreateBookingSheet = ({
                         <Button
                           key={time}
                           type="button"
-                          variant={selectedTime === time ? "default" : "outline"}
+                          variant={
+                            selectedTime === time ? "default" : "outline"
+                          }
                           className="rounded-full"
                           onClick={() => setSelectedTime(time)}
                           data-testid={`owner-create-booking-time-${time}`}
@@ -643,7 +702,10 @@ const OwnerCreateBookingSheet = ({
                 <div className="space-y-3">
                   <div className="text-muted-foreground flex items-center gap-2 text-sm">
                     <UserRound className="size-4" />
-                    Cliente: <span className="text-foreground">{selectedClient.name}</span>
+                    Cliente:{" "}
+                    <span className="text-foreground">
+                      {selectedClient.name}
+                    </span>
                   </div>
 
                   <BookingSummary
