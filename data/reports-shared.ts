@@ -24,7 +24,7 @@ export type ReportMetrics = {
 
 export type ReportPeriod = "week" | "month" | "year";
 
-type ReportBarbershopAccessResult =
+export type ReportBarbershopAccessResult =
   | {
       ok: true;
       barbershopId: string;
