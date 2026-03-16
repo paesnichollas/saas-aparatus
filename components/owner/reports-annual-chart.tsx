@@ -75,8 +75,14 @@ const AnnualChartTooltip = ({
 
 const ReportsAnnualChart = memo(({ chartData }: ReportsAnnualChartProps) => {
   return (
-    <div className="h-[20rem] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-[20rem] min-w-0 w-full">
+      <ResponsiveContainer
+        width="100%"
+        height="100%"
+        minWidth={0}
+        minHeight={1}
+        initialDimension={{ width: 1, height: 1 }}
+      >
         <LineChart data={chartData} margin={{ top: 8, right: 12, left: 12, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" />

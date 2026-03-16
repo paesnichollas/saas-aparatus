@@ -161,7 +161,14 @@ export const useGetOwnerReportDashboard = ({
           cache: "no-store",
         },
       );
-      const responseData = (await response.json()) as unknown;
+
+      let responseData: unknown = null;
+      try {
+        const text = await response.text();
+        responseData = text ? (JSON.parse(text) as unknown) : null;
+      } catch {
+        responseData = null;
+      }
 
       if (!response.ok) {
         const errorMessage =
@@ -177,6 +184,7 @@ export const useGetOwnerReportDashboard = ({
       return responseData;
     },
     enabled,
+    retry: false,
     staleTime: 60 * 1000,
   });
 };

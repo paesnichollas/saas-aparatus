@@ -23,19 +23,6 @@ type MonthlySummaryMonth = {
   avgTicket?: number;
 };
 
-type MonthlySummaryTotals = {
-  totalBookings: number;
-  revenue: number;
-  averageTicket: number;
-};
-
-type MonthlySummaryData = {
-  year: number;
-  barbershopId: string;
-  months: MonthlySummaryMonth[];
-  totals: MonthlySummaryTotals;
-};
-
 type ReportSummaryMetric = {
   totalBookings: number;
   revenue: number;
@@ -51,15 +38,6 @@ type ReportSummaryData = {
     bookingsPercent: number | null;
     revenuePercent: number | null;
     ticketPercent: number | null;
-  };
-};
-
-type ReportDashboardData = {
-  monthlySummary: MonthlySummaryData;
-  summaries: {
-    week: ReportSummaryData;
-    month: ReportSummaryData;
-    year: ReportSummaryData;
   };
 };
 
@@ -566,13 +544,17 @@ const OwnerReportsCard = ({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isDashboardPending && !monthlySummary ? (
+            {dashboardError || (!monthlySummary && !isDashboardPending) ? (
+              <p className="text-muted-foreground text-sm">
+                Não foi possível carregar o relatório.
+              </p>
+            ) : isDashboardPending && !monthlySummary ? (
               <div className="bg-muted h-72 animate-pulse rounded-md" />
-            ) : (
+            ) : monthlySummary ? (
               <ReportsAnnualChart chartData={chartData} />
-            )}
+            ) : null}
 
-            {isYearEmpty && !isDashboardPending ? (
+            {isYearEmpty && monthlySummary && !isDashboardPending ? (
               <p className="text-muted-foreground text-sm">Sem agendamentos no periodo.</p>
             ) : null}
           </CardContent>

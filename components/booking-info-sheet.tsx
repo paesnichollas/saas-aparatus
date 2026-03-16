@@ -128,7 +128,7 @@ const BookingInfoSheet = ({ booking, onClose }: BookingInfoSheetProps) => {
   };
 
   return (
-    <SheetContent className="flex flex-col overflow-y-auto p-0">
+    <SheetContent className="flex flex-col overflow-y-auto p-0 lg:max-w-lg">
       <SheetHeader className="flex flex-row items-center justify-between border-b px-5 py-6">
         <SheetTitle>Informações do Agendamento</SheetTitle>
       </SheetHeader>

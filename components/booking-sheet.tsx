@@ -342,7 +342,10 @@ const BookingSheet = ({ barbershop, barbers, services }: BookingSheetProps) => {
         </Button>
       </SheetTrigger>
 
-      <SheetContent className="overflow-y-auto px-0 pb-0" data-testid="booking-sheet">
+      <SheetContent
+        className="overflow-y-auto px-0 pb-0 lg:max-w-lg"
+        data-testid="booking-sheet"
+      >
         <SheetHeader className="border-border border-b px-5 py-6">
           <SheetTitle>Fazer Agendamento</SheetTitle>
         </SheetHeader>

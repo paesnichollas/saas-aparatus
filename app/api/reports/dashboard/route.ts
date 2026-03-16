@@ -46,16 +46,30 @@ export async function GET(request: Request) {
   }
 
   const { barbershopId, year, month } = resolved.context;
-  const summaryMonth = resolveSummaryMonth({
-    year,
-    requestedMonth: month,
-  });
 
-  const data = await getReportDashboardCached({
-    barbershopId,
-    year,
-    summaryMonth,
-  });
+  try {
+    const summaryMonth = resolveSummaryMonth({
+      year,
+      requestedMonth: month,
+    });
 
-  return NextResponse.json(data, { status: 200 });
+    const data = await getReportDashboardCached({
+      barbershopId,
+      year,
+      summaryMonth,
+    });
+
+    return NextResponse.json(data, { status: 200 });
+  } catch (err) {
+    console.error("[reports/dashboard] Erro ao carregar relatório:", {
+      year,
+      month,
+      barbershopId,
+      error: err,
+    });
+    return NextResponse.json(
+      { error: "Não foi possível carregar o relatório." },
+      { status: 500 },
+    );
+  }
 }

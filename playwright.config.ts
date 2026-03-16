@@ -1,4 +1,4 @@
-﻿import { defineConfig, devices } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 const isContinuousIntegration = Boolean(process.env.CI);
 
@@ -22,8 +22,18 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      name: "desktop",
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1280, height: 720 },
+      },
+    },
+    {
+      name: "mobile",
+      use: {
+        ...devices["Pixel 5"],
+        viewport: { width: 393, height: 851 },
+      },
     },
   ],
   webServer: {

@@ -41,7 +41,7 @@ const BarbershopDetails = ({
         {showBackButton ? <BackButton /> : null}
       </div>
 
-      <div className="bg-background relative z-10 -mt-9 rounded-t-3xl">
+      <div className="bg-background relative z-10 -mt-9 rounded-t-3xl lg:mx-auto lg:max-w-4xl">
         <div className="flex flex-col gap-1 px-5 pt-6">
           <div className="flex items-center gap-1.5">
             <div className="relative size-[1.875rem] shrink-0">

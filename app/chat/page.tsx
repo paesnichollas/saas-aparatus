@@ -78,24 +78,27 @@ const ChatPage = () => {
   const isLoading = status === "submitted" || status === "streaming";
 
   return (
-    <div className="flex min-h-screen flex-col">
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 pt-6">
-        <Link href="/">
-          <Button variant="ghost" size="icon" className="size-6">
-            <ChevronLeft className="size-6" />
-          </Button>
-        </Link>
-        <h1 className="font-[family-name:var(--font-merriweather)] text-xl tracking-tight italic">
-          Agenda.ai
-        </h1>
-        <div className="size-6" />
-      </header>
+    <div className="flex min-h-screen flex-col lg:items-center">
+      <div
+          className="flex w-full max-w-2xl flex-1 flex-col lg:min-h-screen"
+          data-testid="chat-container"
+        >
+        <header className="flex items-center justify-between px-5 pt-6 lg:px-8">
+          <Link href="/">
+            <Button variant="ghost" size="icon" className="size-6">
+              <ChevronLeft className="size-6" />
+            </Button>
+          </Link>
+          <h1 className="font-[family-name:var(--font-merriweather)] text-xl tracking-tight italic">
+            Agenda.ai
+          </h1>
+          <div className="size-6" />
+        </header>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto pb-32">
-        {/* Initial AI Message */}
-        <div className="flex gap-2 px-3 pt-6 pr-14">
+        <div className="flex-1 overflow-y-auto pb-32">
+          <div className="mx-auto max-w-2xl px-3 pt-6 lg:px-8">
+            {/* Initial AI Message */}
+            <div className="flex gap-2 pr-14 lg:pr-4">
           <div className="bg-primary/12 flex size-8 shrink-0 items-center justify-center rounded-full border">
             <BotMessageSquare className="text-primary size-3.5" />
           </div>
@@ -112,7 +115,7 @@ const ChatPage = () => {
         </div>
 
         {error ? (
-          <div className="px-3 pt-6">
+          <div className="pt-6">
             <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3">
               <p className="text-sm text-destructive">{error.message}</p>
             </div>
@@ -123,7 +126,7 @@ const ChatPage = () => {
         {messages.map((message) => (
           <div key={message.id} className="pt-6">
             {message.role === "assistant" ? (
-              <div className="flex items-start gap-2 px-3 pr-14">
+              <div className="flex items-start gap-2 pr-14 lg:pr-4">
                 <div className="bg-primary/12 flex size-8 shrink-0 items-center justify-center rounded-full border">
                   <BotMessageSquare className="text-primary size-3.5" />
                 </div>
@@ -138,7 +141,7 @@ const ChatPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="flex justify-end pr-5 pl-10">
+              <div className="flex justify-end pl-10 pr-5 lg:pl-16">
                 <div className="bg-secondary rounded-full px-4 py-3">
                   <p className="text-sm">
                     {message.parts.map((part, index) =>
@@ -157,18 +160,23 @@ const ChatPage = () => {
 
         {/* Loading indicator */}
         {isLoading && (
-          <div className="flex items-start gap-2 px-3 pt-6 pr-14">
+          <div className="flex items-start gap-2 pt-6 pr-14 lg:pr-4">
             <div className="bg-primary/12 flex size-8 shrink-0 items-center justify-center rounded-full border">
               <BotMessageSquare className="text-primary size-3.5" />
             </div>
             <div className="text-muted-foreground text-sm">Digitando...</div>
           </div>
         )}
+          </div>
+        </div>
       </div>
 
       {/* Input Container */}
-      <div className="bg-muted fixed right-0 bottom-0 left-0 p-5">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      <div className="bg-muted fixed right-0 bottom-0 left-0 p-5 lg:flex lg:justify-center">
+        <form
+          onSubmit={handleSubmit}
+          className="flex w-full max-w-2xl items-center gap-2 lg:mx-auto"
+        >
           <input
             type="text"
             value={input}

@@ -79,10 +79,8 @@ export const getBarbershopMonthlySummary = async ({
       AND "paymentStatus" = 'PAID'
       AND COALESCE("startAt", "date") >= ${start}
       AND COALESCE("startAt", "date") < ${endExclusive}
-    GROUP BY EXTRACT(MONTH FROM (
-      COALESCE("startAt", "date") AT TIME ZONE ${BOOKING_TIMEZONE}
-    ))
-    ORDER BY month
+    GROUP BY 1
+    ORDER BY 1
   `;
 
   const monthlySummary = createEmptyMonthlySummary();
